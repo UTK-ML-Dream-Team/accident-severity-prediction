@@ -31,8 +31,8 @@ COMMANDS = [
 ]
 setup(
     author="drkostas, jheiba, Russtyhub, schoward2, isanjeevsingh",
-    author_email="kgeorgio.vols.utk.edu, jlord1@vols.utk.edu, "
-                 "rlimber@vols.utk.edu, showar37@vols.utk.edu, ssingh42@vols.utk.edu",
+    author_email="kgeorgio.vols.utk.edu, jlord1@vols.utk.edu, rlimber@vols.utk.edu, "
+                 "showar37@vols.utk.edu, ssingh42@vols.utk.edu",
     python_requires='>=3.8',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
