@@ -1,0 +1,7 @@
+tag: prototype_1
+data_loader:
+  config:
+    dataset:
+      url: https://www.kaggle.com/janiobachmann/credit-fraud-dealing-with-imbalanced-datasets/data?select=creditcard.csv
+      loader: kaggle
+
