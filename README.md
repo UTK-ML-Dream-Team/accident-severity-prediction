@@ -1,4 +1,4 @@
-# Credit Fraud Detection<img src='https://avatars.githubusercontent.com/u/90112108' align='right' width='180' height='104'>
+# Credit Fraud Detection<img src='https://avatars.githubusercontent.com/u/93612370' align='right' width='180' height='104'>
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/UTK-ML-Dream-Team/credit-fraud-detection/master/LICENSE)
 
 ## About  <a name = "about"></a>
