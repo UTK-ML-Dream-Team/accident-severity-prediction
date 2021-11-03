@@ -4,4 +4,3 @@ data_loader:
     dataset:
       url: https://www.kaggle.com/janiobachmann/credit-fraud-dealing-with-imbalanced-datasets/data?select=creditcard.csv
       loader: kaggle
-

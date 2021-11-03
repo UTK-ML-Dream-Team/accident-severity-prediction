@@ -11,8 +11,8 @@ Group 2 - Final Project for the UTK Machine Learning Course (COSC-522)
 ### Libraries Overview <a name = "lib_overview"></a>
 
 All the libraries are located under [\<project root\>/project_libs](project_libs)
-- [\<project root\>/project_libs/project](project_libs/project): This project's code (imported later)
--[\<project root\>/project_libs/configuration](project_libs/configuration): Class that creates config objects from yml files
+- [\<project root\>/project_libs/project](project_libs/project): This project's code
+- [\<project root\>/project_libs/configuration](project_libs/configuration): Class that creates config objects from yml files
 - [\<project root\>/project_libs/fancy_logger](project_libs/fancy_logger): Logger that can be used instead of prints for text formatting (color, bold, underline etc)
 
 ### Where to put the code  <a name = "#putcode"></a>
@@ -35,7 +35,6 @@ All the libraries are located under [\<project root\>/project_libs](project_libs
       + [Local Jupyter](#local_jupyter)
       + [Google Collab](#google_collab)
 + [Adding New Libraries](#adding_libs) 
-+ [TODO](#todo)
 + [License](#license)
 
 ## Prerequisites <a name = "prerequisites"></a>
@@ -73,7 +72,7 @@ $ make install env=venv
 ### Modifying the Configuration <a name = "configuration"></a>
 
 You may need to configure the yml file. There is an already configured yml file 
-under [confs/config.yml](confs/config.yml).
+under [confs/prototype1.yml](confs/prototype1.yml).
 
 ### Local Jupyter <a name = "local_jupyter"></a>
 
@@ -106,10 +105,6 @@ If you want to add a new library (e.g. a Class) in the project you need to follo
 4. Go to *project_libs/project/__init__.py*
 7. Add the following line: ```from project_libs.project/<Module name> import *```
 8. (Optional) Rerun `make install` or `python setup.py install` 
-
-## TODO <a name = "todo"></a>
-
-Read the [TODO](TODO.md) to see the current task list.
 
 ## License <a name = "license"></a>
 
