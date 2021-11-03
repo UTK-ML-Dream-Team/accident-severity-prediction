@@ -75,7 +75,7 @@ docs/_build/
 target/
 
 # Jupyter Notebook
-../../Insync/delfinas7kostas@gmail.com/Google Drive/Projects/UTK/NLP-Project2/Code/.ipynb_checkpoints
+.ipynb_checkpoints
 
 # IPython
 profile_default/

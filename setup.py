@@ -26,9 +26,7 @@ with open('README.md') as readme_file:
 
 setup_requirements = []
 data_files = ['project_libs/configuration/yml_schema.json']
-COMMANDS = [
-    # 'nlp_main = main:main'
-]
+COMMANDS = []
 setup(
     author="drkostas, jheiba, Russtyhub, schoward2, isanjeevsingh",
     author_email="kgeorgio.vols.utk.edu, jlord1@vols.utk.edu, rlimber@vols.utk.edu, "
