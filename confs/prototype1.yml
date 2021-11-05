@@ -2,5 +2,6 @@ tag: prototype_1
 data_loader:
   config:
     dataset:
-      url: https://www.kaggle.com/sobhanmoosavi/us-accidents
-      loader: kaggle
+      kaggle_dataset_name: sobhanmoosavi/us-accidents
+      local_dataset_name: data/US_Accidents_Dec20_updated.csv
+      download: True
