@@ -1,9 +1,9 @@
-# Credit Fraud Detection<img src='https://avatars.githubusercontent.com/u/93612370' align='right' width='180' height='104'>
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/UTK-ML-Dream-Team/credit-fraud-detection/master/LICENSE)
+# Accident Severity Prediction<img src='https://avatars.githubusercontent.com/u/93612370' align='right' width='180' height='104'>
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/UTK-ML-Dream-Team/accident-severity-prediction/master/LICENSE)
 
 ## About  <a name = "about"></a>
-**[Project Board](https://github.com/UTK-ML-Dream-Team/credit-fraud-detection/projects/1)**, 
-**[Current Issues](https://github.com/UTK-ML-Dream-Team/credit-fraud-detection/issues)**, 
+**[Project Board](https://github.com/UTK-ML-Dream-Team/accident-severity-prediction/projects/1)**, 
+**[Current Issues](https://github.com/UTK-ML-Dream-Team/accident-severity-prediction/issues)**, 
 **[Assignment](http://web.eecs.utk.edu/~hqi/cosc522/project/proj-final.htm)**
 
 Group 2 - Final Project for the UTK Machine Learning Course (COSC-522)
@@ -79,10 +79,10 @@ under [confs/prototype1.yml](confs/prototype1.yml).
 First, make sure you are in the correct virtual environment:
 
 ```Shell
-$ conda activate credit_fraud_detection
+$ conda activate accident_severity_prediction
 
 $ which python
-/home/<your user>/anaconda3/envs/credit_fraud_detection/bin/python
+/home/<your user>/anaconda3/envs/accident_severity_prediction/bin/python
 ```
 
 To use jupyter, first run `jupyter`:
@@ -94,7 +94,7 @@ And open the [main.ipynb](main.ipynb).
 
 ### Google Collab <a name = "google_collab"></a>
 
-Just Open this [Google Collab Link](https://colab.research.google.com/github/UTK-ML-Dream-Team/credit-fraud-detection/blob/main/main.ipynb).
+Just Open this [Google Collab Link](https://colab.research.google.com/github/UTK-ML-Dream-Team/accident-severity-prediction/blob/main/main.ipynb).
 
 ## Adding New Libraries <a name = "adding_libs"></a>
 

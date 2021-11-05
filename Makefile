@@ -6,7 +6,7 @@ PYTHON_VERSION=3.8
 # You can use either venv (virtualenv) or conda env by specifying the correct argument [env=<conda|venv>]>
 ifeq ($(env),conda)
 	# Use Conda
-	BASE=~/anaconda3/envs/credit_fraud_detection
+	BASE=~/anaconda3/envs/accident_severity_prediction
 	BIN=$(BASE)/bin
 	CLEAN_COMMAND="conda env remove -p $(BASE)"
 	CREATE_COMMAND="conda create --prefix $(BASE) python=$(PYTHON_VERSION) -y"
@@ -22,7 +22,7 @@ else ifeq ($(env),venv)
 	DEBUG=False
 else
 	# Use Conda
-	BASE=~/anaconda3/envs/credit_fraud_detection
+	BASE=~/anaconda3/envs/accident_severity_prediction
 	BIN=$(BASE)/bin
 	CLEAN_COMMAND="conda env remove -p $(BASE)"
 	CREATE_COMMAND="conda create --prefix $(BASE) python=$(PYTHON_VERSION) -y"
