@@ -6,7 +6,7 @@ import numpy as np
 import statsmodels.api as sm
 from numpy import NaN
 
-raw_data = pd.read_csv('C:\\Users\\Russ\\Desktop\\Final_Project_Fall_2021\\raw_data.csv')
+raw_data = pd.read_csv('C:\\...\\raw_data.csv')
 
 print(raw_data.shape)
 
