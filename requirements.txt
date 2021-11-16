@@ -12,6 +12,7 @@ seaborn>=0.11.2
 setuptools>=52.0.0
 scikit-learn>=0.0
 scipy>=1.7.1
+statsmodels
 termcolor>=1.1.0
 typer>=0.3.2
 tqdm>=4.62.3
