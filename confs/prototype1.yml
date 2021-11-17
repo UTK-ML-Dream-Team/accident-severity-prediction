@@ -35,3 +35,17 @@ data_loader:
         - Civil_Twilight
         - Nautical_Twilight
         - Astronomical_Twilight
+      infra_vars:
+        - Traffic_Signal
+        - Crossing
+        - Station
+        - Amenity
+        - Bump
+        - Give_Way
+        - Junction
+        - No_Exit
+        - Railway
+        - Roundabout
+        - Stop
+        - Traffic_Calming
+        - Turning_Loop
