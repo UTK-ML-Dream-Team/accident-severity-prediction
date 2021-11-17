@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 # Custom Libs
 from project_libs import ColorizedLogger
 
-logger = ColorizedLogger('Project3 Models', 'green')
+logger = ColorizedLogger('Preprocessing', 'green')
 
 
 class PCA:
@@ -83,10 +83,11 @@ def subset_df(df, keep_list):
 def OLS(x, y):
     model = sm.OLS(y, x, missing='drop')
     results = model.fit()
-    print(results.summary())
+    logger.info(results.summary())
 
 
-def basic_impute(data):
+def basic_impute(input_data):
+    data = input_data.copy()
     df_num = data.select_dtypes(include=np.number)
 
     for i in data:
@@ -240,9 +241,14 @@ class PCA:
     def __init__(self) -> None:
         pass
 
-    def fit(self, data: np.ndarray, max_dims: int = None, max_error: float = None):
+    def fit(self, data: np.ndarray, max_dims: int = None,
+            max_error: float = None, split: bool = True):
         # Split features and class labels
-        data_x, data_y = self.x_y_split(dataset=data)
+        if split:
+            data_x, data_y = self.x_y_split(dataset=data)
+        else:
+            data_x = data
+
         if max_dims:
             if max_dims > data_x.shape[1] - 1:
                 raise Exception("Max dims should be no more than # of features -1!")
@@ -271,10 +277,16 @@ class PCA:
                     break
         self.basis_vector = eig_vectors[:, lambdas_sorted_idx[:max_dims]]
 
-    def transform(self, data: np.ndarray) -> np.array:
-        data_x, data_y = self.x_y_split(dataset=data)
+    def transform(self, data: np.ndarray, split: bool = True) -> np.array:
+        if split:
+            data_x, data_y = self.x_y_split(dataset=data)
+        else:
+            data_x = data
         data_x_proj = data_x @ self.basis_vector
-        return np.append(data_x_proj, data_y[:, np.newaxis], axis=1)
+        if split:
+            return np.append(data_x_proj, data_y[:, np.newaxis], axis=1)
+        else:
+            return data_x_proj
 
     @staticmethod
     def x_y_split(dataset: np.ndarray) -> Tuple[np.array, np.array]:
