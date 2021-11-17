@@ -1,12 +1,64 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+from typing import *
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
-from numpy import NaN
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
+# Custom Libs
+from project_libs import ColorizedLogger
+
+logger = ColorizedLogger('Project3 Models', 'green')
+
+
+class PCA:
+    """ Principal Component Analysis. """
+    means: np.ndarray
+    basis_vector: np.ndarray
+
+    def __init__(self) -> None:
+        pass
+
+    def fit(self, data: np.ndarray, max_dims: int = None, max_error: float = None):
+        # Split features and class labels
+        data_x, data_y = self.x_y_split(dataset=data)
+        if max_dims:
+            if max_dims > data_x.shape[1] - 1:
+                raise Exception("Max dims should be no more than # of features -1!")
+        elif not max_error:
+            logger.warning("Neither of max_dims, max_error was given. Using max_dims=1")
+            max_dims = 1
+
+        # Calculate overall means
+        self.means = np.expand_dims(np.mean(data_x, axis=0), axis=1).T
+        # Calculate overall covariances
+        covariances = np.cov(data_x.T)
+        # Calculate lambdas and eigenvectors
+        lambdas, eig_vectors = np.linalg.eig(covariances)
+        # Calculate the basis vector based on the largest lambdas
+        lambdas_sorted_idx = np.argsort(lambdas)[::-1]
+        lambdas_sorted = lambdas[lambdas_sorted_idx]
+        # If max_error is set, derive max_dims based on that
+        if max_error:
+            lambdas_sum = np.sum(lambdas_sorted)
+            for n_dropped_dims in range(0, data_x.shape[1]):
+                n_first_lambdas = lambdas_sorted[:n_dropped_dims + 1]
+                pca_error = 1 - (np.sum(n_first_lambdas) / lambdas_sum)
+                if pca_error <= max_error:
+                    max_dims = n_dropped_dims + 1
+                    logger.info(f"For # dims={max_dims} error={pca_error} <= {max_error}")
+                    break
+        self.basis_vector = eig_vectors[:, lambdas_sorted_idx[:max_dims]]
+
+    def transform(self, data: np.ndarray) -> np.array:
+        data_x, data_y = self.x_y_split(dataset=data)
+        data_x_proj = data_x @ self.basis_vector
+        return np.append(data_x_proj, data_y[:, np.newaxis], axis=1)
+
+    @staticmethod
+    def x_y_split(dataset: np.ndarray) -> Tuple[np.array, np.array]:
+        return dataset[:, :-1], dataset[:, -1].astype(int)
 
 
 def isolate_city_state(data, cities, states):
@@ -178,3 +230,52 @@ def preprocess_loc_basic_var(accident_df):
     accident_bl_df['End_Time'] = pd.to_datetime(accident_bl_df['End_Time'], errors='coerce')
 
     return accident_bl_df
+
+
+class PCA:
+    """ Principal Component Analysis. """
+    means: np.ndarray
+    basis_vector: np.ndarray
+
+    def __init__(self) -> None:
+        pass
+
+    def fit(self, data: np.ndarray, max_dims: int = None, max_error: float = None):
+        # Split features and class labels
+        data_x, data_y = self.x_y_split(dataset=data)
+        if max_dims:
+            if max_dims > data_x.shape[1] - 1:
+                raise Exception("Max dims should be no more than # of features -1!")
+        elif not max_error:
+            logger.warning("Neither of max_dims, max_error was given. Using max_dims=1")
+            max_dims = 1
+
+        # Calculate overall means
+        self.means = np.expand_dims(np.mean(data_x, axis=0), axis=1).T
+        # Calculate overall covariances
+        covariances = np.cov(data_x.T)
+        # Calculate lambdas and eigenvectors
+        lambdas, eig_vectors = np.linalg.eig(covariances)
+        # Calculate the basis vector based on the largest lambdas
+        lambdas_sorted_idx = np.argsort(lambdas)[::-1]
+        lambdas_sorted = lambdas[lambdas_sorted_idx]
+        # If max_error is set, derive max_dims based on that
+        if max_error:
+            lambdas_sum = np.sum(lambdas_sorted)
+            for n_dropped_dims in range(0, data_x.shape[1]):
+                n_first_lambdas = lambdas_sorted[:n_dropped_dims + 1]
+                pca_error = 1 - (np.sum(n_first_lambdas) / lambdas_sum)
+                if pca_error <= max_error:
+                    max_dims = n_dropped_dims + 1
+                    logger.info(f"For # dims={max_dims} error={pca_error} <= {max_error}")
+                    break
+        self.basis_vector = eig_vectors[:, lambdas_sorted_idx[:max_dims]]
+
+    def transform(self, data: np.ndarray) -> np.array:
+        data_x, data_y = self.x_y_split(dataset=data)
+        data_x_proj = data_x @ self.basis_vector
+        return np.append(data_x_proj, data_y[:, np.newaxis], axis=1)
+
+    @staticmethod
+    def x_y_split(dataset: np.ndarray) -> Tuple[np.array, np.array]:
+        return dataset[:, :-1], dataset[:, -1].astype(int)
