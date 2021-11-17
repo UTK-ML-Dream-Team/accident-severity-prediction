@@ -59,6 +59,9 @@ All the installation steps are being handled by the [Makefile](Makefile).
 If you want to use conda run:
 ```Shell
 $ make install
+
+$ conda activate accident_severity_prediction
+
 ```
 
 If you want to use venv run:
@@ -66,6 +69,32 @@ If you want to use venv run:
 $ make install env=venv
 ```
 
+## Using Git <a name = "git"></a>
+
+To push your local changes to remote repository:
+
+2. For every file you changed do:
+```Shell
+$ git add path-to-file-1
+$ git add path-to-file-2
+# ...
+``` 
+2. Create a commit message
+```Shell
+$ git commit -m "My commit message"
+```
+2. Push your changes to GitHub
+```Shell
+$ git fetch
+$ git pull
+$ git commit -m "My commit message"
+$ git push origin master
+```
+
+To pull changes from GitHub
+```Shell
+$ git pull
+```
 
 ## Using Jupyter <a name = "jupyter"></a>
 

@@ -6,11 +6,6 @@ import numpy as np
 import statsmodels.api as sm
 from numpy import NaN
 
-env_vars = ['Weather_Timestamp', 'Temperature(F)', 'Wind_Chill(F)', 'Humidity(%)', 'Pressure(in)',
-            'Visibility(mi)', 'Wind_Direction', 'Wind_Speed(mph)', 'Precipitation(in)',
-            'Weather_Condition',
-            'Sunrise_Sunset', 'Civil_Twilight', 'Nautical_Twilight', 'Astronomical_Twilight']
-
 
 def isolate_city_state(data, cities, states):
     ''' This ensures that each city is selected with it's respective state
