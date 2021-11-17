@@ -73,7 +73,7 @@ $ make install env=venv
 
 To push your local changes to remote repository:
 
-2. For every file you changed do:
+1. For every file you changed do:
 ```Shell
 $ git add path-to-file-1
 $ git add path-to-file-2
@@ -83,7 +83,7 @@ $ git add path-to-file-2
 ```Shell
 $ git commit -m "My commit message"
 ```
-2. Push your changes to GitHub
+3. Push your changes to GitHub
 ```Shell
 $ git fetch
 $ git pull
