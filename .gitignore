@@ -146,3 +146,6 @@ dmypy.json
 
 # SWAP 
 *.swp
+
+# DS Store
+.DS_STORE
