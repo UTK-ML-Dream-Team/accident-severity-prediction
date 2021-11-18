@@ -71,6 +71,17 @@ $ make install env=venv
 
 ## Using Git <a name = "git"></a>
 
+To download the project:
+- If you have a ssh key saved in your GitHub account ([instructions](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)):
+```Shell
+$ git clone git@github.com:UTK-ML-Dream-Team/accident-severity-prediction.git
+```
+- If you haven't set up an ssh key:
+```Shell
+$ git clone https://github.com/UTK-ML-Dream-Team/accident-severity-prediction.git
+```
+
+
 To push your local changes to remote repository:
 
 1. For every file you changed do:
@@ -87,7 +98,6 @@ $ git commit -m "My commit message"
 ```Shell
 $ git fetch
 $ git pull
-$ git commit -m "My commit message"
 $ git push origin master
 ```
 
