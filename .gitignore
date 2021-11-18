@@ -149,3 +149,4 @@ dmypy.json
 
 # DS Store
 .DS_STORE
+data/*.csv
