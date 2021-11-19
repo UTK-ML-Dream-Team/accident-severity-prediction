@@ -106,6 +106,13 @@ To pull changes from GitHub
 $ git pull
 ```
 
+Resolve conflicts:
+
+```Shell
+# Install nbdime and run:
+$ nbdime config-git --enable --global
+```
+
 ## Using Jupyter <a name = "jupyter"></a>
 
 ### Modifying the Configuration <a name = "configuration"></a>

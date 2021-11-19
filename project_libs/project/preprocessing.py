@@ -8,6 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 # Custom Libs
 from project_libs import ColorizedLogger
+from sklearn.impute import KNNImputer
 
 logger = ColorizedLogger('Preprocessing', 'green')
 
@@ -49,6 +50,14 @@ def basic_impute(input_data):
 
     return data
 
+def knn_imputer(df, k):
+    temp_data = df.select_dtypes(include=np.number)
+    imputer = KNNImputer(n_neighbors=k)
+    vals_arr = imputer.fit_transform(temp_data)
+    cols = df.select_dtypes(include=np.number).columns
+    df[cols] = vals_arr
+    
+    return df
 
 def encode_std_extract_split(X):
     # Dropping the following features
