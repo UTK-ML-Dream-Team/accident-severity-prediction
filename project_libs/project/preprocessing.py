@@ -145,6 +145,9 @@ def encode_std_extract_split(X):
     X_train, X_test, y_train, y_test = train_test_split(X, y,
                                                         test_size=0.10, shuffle=True, stratify=y,
                                                         random_state=42)
+    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train,
+                                                        test_size=0.10/0.90, shuffle=True, stratify=y_train,
+                                                        random_state=42)
 
     # Standardize Numerical Variables
     numerical_features = [
@@ -157,9 +160,10 @@ def encode_std_extract_split(X):
         mu = X_train[feature].mean()
         sigma = X_train[feature].std()
         X_train[feature] = X_train[feature].apply(lambda x: (x - mu) / sigma)
-        X_test[feature] = X_test[feature].apply(lambda x: (x - mu) / sigma)
+        X_val[feature]   = X_val[feature].apply(lambda x: (x - mu) / sigma)        
+        X_test[feature]  = X_test[feature].apply(lambda x: (x - mu) / sigma)
 
-    return (X_train, X_test, y_train, y_test)
+    return (X_train, X_val, X_test, y_train, y_val, y_test)
 
 
 def filter_loc_basic_var(accident_df):

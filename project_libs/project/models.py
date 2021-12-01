@@ -1,8 +1,15 @@
 import numpy as np
 from time import time
 from typing import *
-
+from sklearn.svm import SVC
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from scipy.spatial import distance
+from prettytable import PrettyTable
 from project_libs import ColorizedLogger
+from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score
+
 
 logger = ColorizedLogger('Models', 'green')
 
@@ -214,3 +221,85 @@ class BayesianCase:
         logger.info(f"|{'':^15}|{'Positive':^15}|{'Negative':^15}|", color='red')
         logger.info(f"|{'Positive':^15}|{self.tp[mtype]:^15}|{self.fn[mtype]:^15}|", color='red')
         logger.info(f"|{'Negative':^15}|{self.fp[mtype]:^15}|{self.tn[mtype]:^15}|", color='red')
+
+
+# Implementation of kmeans clustering algorithm
+class kmeans:
+    
+    def __init__(self, X_train, max_iter=1000, k=2, dist='euclidean'):
+        self.X = X_train
+        self.k = k
+        self.max_iter=max_iter
+        self.centroids = []
+        self.switch = []
+        self.epoch = []
+        self.dist = dist
+    
+    def fit(self):
+        np.random.seed(42)
+        idx = np.random.choice(len(self.X), self.k, replace=False)
+        centroids = self.X[idx, :]
+        pre_labels = np.argmin(distance.cdist(self.X, centroids, self.dist),axis=1)
+        for itr in range(self.max_iter):
+            tmp_centroids = []
+            for i in range(self.k):
+                
+                # handle the case for orphan centroids
+                if self.X[pre_labels==i,:].shape[0] == 0:
+                    tmp_centroids.append(centroids[i])
+                    # print("orphan i ",i)
+                else:
+                    tmp_centroids.append(self.X[pre_labels==i,:].mean(axis=0))
+                    
+            # centroids = np.vstack([self.X[pre_labels==i,:].mean(axis=0) for i in range(self.k)])         
+            centroids = np.vstack(tmp_centroids)         
+            current_labels = np.argmin(distance.cdist(self.X, centroids, self.dist),axis=1)
+            # print(itr, end=" ")
+            # print("swaps ", 100 * ( 1-(sum(pre_labels==current_labels)/len(pre_labels)) ) )
+            
+            self.switch.append( 100 * ( 1-(sum(pre_labels==current_labels)/len(pre_labels)) ) )
+            self.epoch.append(itr+2)
+            if np.array_equal(pre_labels, current_labels):
+                break
+            pre_labels = current_labels
+        # print("epochs ",len(self.epoch))
+        self.centroids = centroids
+
+    @staticmethod
+    def classification_report(y_true, y_pred):
+        tn_00 = sum(y_pred[y_true==0]==y_true[y_true==0]) # true negatives
+        tp_11 = sum(y_pred[y_true==1]==y_true[y_true==1]) # true positives
+        fp_01 = sum(y_true==0) - tn_00 # false positives
+        fn_10 = sum(y_true==1) - tp_11 # false negatives
+        # confusion_matrix = np.array([[tn_00, fp_01], [fn_10, tp_11]])
+
+        class_0_accuracy=100.0*sum(y_pred[y_true==0]==y_true[y_true==0])/sum(y_true==0)
+        class_1_accuracy=100.0*sum(y_pred[y_true==1]==y_true[y_true==1])/sum(y_true==1)
+        
+        # print("Kmeans Classification Report:")
+        print(f"Overall Accuracy: {round(100.0*accuracy_score(y_pred, y_true), 2)} %") 
+        print(f"F1-Score: {round(f1_score(y_true, y_pred), 3)}")
+        print(f"Class 0 accuracy: {round(class_0_accuracy, 2)} %" ) 
+        print(f"Class 1 accuracy: {round(class_1_accuracy, 2)} %") 
+        
+        print("Confusion Matrix:")
+        confusion_matrix = PrettyTable(['','Predicted 0', 'Predicted 1','Total'])
+        confusion_matrix.add_row(['Actual 0', tn_00, fp_01, tn_00+fp_01])
+        confusion_matrix.add_row(['Actual 1', fn_10, tp_11, fn_10+tp_11])
+        confusion_matrix.add_row(['Total', tn_00+fn_10, fp_01+tp_11, tn_00+fn_10+fp_01+tp_11])        
+        print(confusion_matrix)
+
+    def predict(self, data, y_true):      
+        y_pred = np.argmin(distance.cdist(data, self.centroids, 'euclidean'),axis=1)
+        if accuracy_score(y_pred, y_true) < 0.5:
+            y_pred = 1-y_pred
+        return y_pred
+
+    def plot_membership_switches(self):
+        plt.figure(figsize=(10, 8))   
+        plt.plot(self.epoch, self.switch)
+        plt.title('Kmeans: Samples Membership Changes vs. Epoch')
+        plt.xlabel("Epoch")
+        plt.ylabel("Membership Changes (%)")
+        plt.grid(True)
+        plt.show()
