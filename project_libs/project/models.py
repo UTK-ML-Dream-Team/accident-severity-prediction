@@ -610,12 +610,13 @@ class MultiLayerPerceptron:
         return data_x_c1, data_x_c2
 
 
-def train_mlp(dataset, targets, hidden_layers, activations, loss_functions, lr, momentum,
-              batch_size, early_stopping, max_epochs, regularization_param, shuffle,
-              symmetric_weights, seed, debug):
+def train_dataset(name, dataset, targets, hidden_layers, activations, loss_functions, lr, momentum,
+                  batch_size, early_stopping, max_epochs, regularization_param, shuffle,
+                  symmetric_weights, seed, debug):
+    logger.nl()
+    logger.info(f"Training {name} dataset..")
     # Number of units per layer
-    n_units = [int(dataset.shape[1] - 1), *hidden_layers,
-               int(dataset[:, -1].max() + 1)]
+    n_units = [int(dataset.shape[1] - 1), *hidden_layers, int(dataset[:, -1].max() + 1)]
     # Initialize Model
     mlp_model = MultiLayerPerceptron(units=n_units, activations=activations,
                                      symmetric_weights=symmetric_weights,
