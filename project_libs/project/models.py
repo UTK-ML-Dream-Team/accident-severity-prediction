@@ -10,10 +10,10 @@ from project_libs import ColorizedLogger
 from sklearn.metrics import f1_score
 from sklearn.metrics import accuracy_score
 
-
 logger = ColorizedLogger('Models', 'green')
 
 np.seterr(divide='raise')
+
 
 class BayesianCase:
     """ Implementation of Minimum Euclidean distance, Mahalanobis, and Quadratic classifiers. """
@@ -93,7 +93,6 @@ class BayesianCase:
         self.avg_mean = np.mean(self.means, axis=0)
         self.avg_std = np.mean(self.stds, axis=0)
 
-
     def _build_g_euclidean(self, sample, n_class, priors: List[float]):
         first_term = np.matmul(self.means[n_class].T, self.x_test[sample]) / self.avg_var
         second_term = np.matmul(self.means[n_class].T, self.means[n_class]) / (2 * self.avg_var)
@@ -102,8 +101,16 @@ class BayesianCase:
         return g
 
     def _build_g_mahalanobis(self, sample, n_class, priors: List[float]):
-        first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
-                                     np.linalg.inv(self.first_and_second_case_cov))
+        current_cov = self.first_and_second_case_cov
+        try:
+            first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
+                                         np.linalg.inv(current_cov))
+        except np.linalg.LinAlgError as e:
+            logger.debug(f"{e}")
+            current_cov += + 10e-5
+            first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
+                                         np.linalg.inv(current_cov))
+
         first_term = -(1 / 2) * np.matmul(first_term_dot_1,
                                           (self.x_test[sample] - self.means[n_class]))
         second_term = np.log(priors[n_class])
@@ -225,40 +232,40 @@ class BayesianCase:
 
 # Implementation of kmeans clustering algorithm
 class kmeans:
-    
+
     def __init__(self, X_train, max_iter=1000, k=2, dist='euclidean'):
         self.X = X_train
         self.k = k
-        self.max_iter=max_iter
+        self.max_iter = max_iter
         self.centroids = []
         self.switch = []
         self.epoch = []
         self.dist = dist
-    
+
     def fit(self):
         np.random.seed(42)
         idx = np.random.choice(len(self.X), self.k, replace=False)
         centroids = self.X[idx, :]
-        pre_labels = np.argmin(distance.cdist(self.X, centroids, self.dist),axis=1)
+        pre_labels = np.argmin(distance.cdist(self.X, centroids, self.dist), axis=1)
         for itr in range(self.max_iter):
             tmp_centroids = []
             for i in range(self.k):
-                
+
                 # handle the case for orphan centroids
-                if self.X[pre_labels==i,:].shape[0] == 0:
+                if self.X[pre_labels == i, :].shape[0] == 0:
                     tmp_centroids.append(centroids[i])
                     # print("orphan i ",i)
                 else:
-                    tmp_centroids.append(self.X[pre_labels==i,:].mean(axis=0))
-                    
+                    tmp_centroids.append(self.X[pre_labels == i, :].mean(axis=0))
+
             # centroids = np.vstack([self.X[pre_labels==i,:].mean(axis=0) for i in range(self.k)])         
-            centroids = np.vstack(tmp_centroids)         
-            current_labels = np.argmin(distance.cdist(self.X, centroids, self.dist),axis=1)
+            centroids = np.vstack(tmp_centroids)
+            current_labels = np.argmin(distance.cdist(self.X, centroids, self.dist), axis=1)
             # print(itr, end=" ")
             # print("swaps ", 100 * ( 1-(sum(pre_labels==current_labels)/len(pre_labels)) ) )
-            
-            self.switch.append( 100 * ( 1-(sum(pre_labels==current_labels)/len(pre_labels)) ) )
-            self.epoch.append(itr+2)
+
+            self.switch.append(100 * (1 - (sum(pre_labels == current_labels) / len(pre_labels))))
+            self.epoch.append(itr + 2)
             if np.array_equal(pre_labels, current_labels):
                 break
             pre_labels = current_labels
@@ -267,36 +274,37 @@ class kmeans:
 
     @staticmethod
     def classification_report(y_true, y_pred):
-        tn_00 = sum(y_pred[y_true==0]==y_true[y_true==0]) # true negatives
-        tp_11 = sum(y_pred[y_true==1]==y_true[y_true==1]) # true positives
-        fp_01 = sum(y_true==0) - tn_00 # false positives
-        fn_10 = sum(y_true==1) - tp_11 # false negatives
+        tn_00 = sum(y_pred[y_true == 0] == y_true[y_true == 0])  # true negatives
+        tp_11 = sum(y_pred[y_true == 1] == y_true[y_true == 1])  # true positives
+        fp_01 = sum(y_true == 0) - tn_00  # false positives
+        fn_10 = sum(y_true == 1) - tp_11  # false negatives
         # confusion_matrix = np.array([[tn_00, fp_01], [fn_10, tp_11]])
 
-        class_0_accuracy=100.0*sum(y_pred[y_true==0]==y_true[y_true==0])/sum(y_true==0)
-        class_1_accuracy=100.0*sum(y_pred[y_true==1]==y_true[y_true==1])/sum(y_true==1)
-        
+        class_0_accuracy = 100.0 * sum(y_pred[y_true == 0] == y_true[y_true == 0]) / sum(y_true == 0)
+        class_1_accuracy = 100.0 * sum(y_pred[y_true == 1] == y_true[y_true == 1]) / sum(y_true == 1)
+
         # print("Kmeans Classification Report:")
-        print(f"Overall Accuracy: {round(100.0*accuracy_score(y_pred, y_true), 2)} %") 
+        print(f"Overall Accuracy: {round(100.0 * accuracy_score(y_pred, y_true), 2)} %")
         print(f"F1-Score: {round(f1_score(y_true, y_pred), 3)}")
-        print(f"Class 0 accuracy: {round(class_0_accuracy, 2)} %" ) 
-        print(f"Class 1 accuracy: {round(class_1_accuracy, 2)} %") 
-        
+        print(f"Class 0 accuracy: {round(class_0_accuracy, 2)} %")
+        print(f"Class 1 accuracy: {round(class_1_accuracy, 2)} %")
+
         print("Confusion Matrix:")
-        confusion_matrix = PrettyTable(['','Predicted 0', 'Predicted 1','Total'])
-        confusion_matrix.add_row(['Actual 0', tn_00, fp_01, tn_00+fp_01])
-        confusion_matrix.add_row(['Actual 1', fn_10, tp_11, fn_10+tp_11])
-        confusion_matrix.add_row(['Total', tn_00+fn_10, fp_01+tp_11, tn_00+fn_10+fp_01+tp_11])        
+        confusion_matrix = PrettyTable(['', 'Predicted 0', 'Predicted 1', 'Total'])
+        confusion_matrix.add_row(['Actual 0', tn_00, fp_01, tn_00 + fp_01])
+        confusion_matrix.add_row(['Actual 1', fn_10, tp_11, fn_10 + tp_11])
+        confusion_matrix.add_row(
+            ['Total', tn_00 + fn_10, fp_01 + tp_11, tn_00 + fn_10 + fp_01 + tp_11])
         print(confusion_matrix)
 
-    def predict(self, data, y_true):      
-        y_pred = np.argmin(distance.cdist(data, self.centroids, 'euclidean'),axis=1)
+    def predict(self, data, y_true):
+        y_pred = np.argmin(distance.cdist(data, self.centroids, 'euclidean'), axis=1)
         if accuracy_score(y_pred, y_true) < 0.5:
-            y_pred = 1-y_pred
+            y_pred = 1 - y_pred
         return y_pred
 
     def plot_membership_switches(self):
-        plt.figure(figsize=(10, 8))   
+        plt.figure(figsize=(10, 8))
         plt.plot(self.epoch, self.switch)
         plt.title('Kmeans: Samples Membership Changes vs. Epoch')
         plt.xlabel("Epoch")
