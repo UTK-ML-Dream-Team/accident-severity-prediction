@@ -617,7 +617,8 @@ def train_dataset(name, dataset, targets, hidden_layers, activations, loss_funct
     logger.nl()
     logger.info(f"Training {name} dataset..")
     # Number of units per layer
-    n_units = [int(dataset.shape[1] - 1), *hidden_layers, int(dataset[:, -1].max() + 1)]
+    n_units = [int(dataset.shape[1]), *hidden_layers, int(targets.shape[1])]
+    logger.info(n_units)
     # Initialize Model
     mlp_model = MultiLayerPerceptron(units=n_units, activations=activations,
                                      symmetric_weights=symmetric_weights,
