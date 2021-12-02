@@ -13,6 +13,13 @@ from sklearn.impute import KNNImputer
 logger = ColorizedLogger('Preprocessing', 'green')
 
 
+def one_hot_encode(data):
+    y = data.copy().T.astype(int)
+    y_one_hot = np.zeros((y.size, y.max() + 1))
+    y_one_hot[np.arange(y.size), y] = 1
+    return y_one_hot
+
+
 def isolate_city_state(data, cities, states):
     """ This ensures that each city is selected with it's respective state
     which is why I didn't simply run a merge statement. """
