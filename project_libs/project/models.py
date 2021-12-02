@@ -290,7 +290,8 @@ class MultiLayerPerceptron:
         losses = []
         times = []
         # --- Train Loop --- #
-        data_x, _ = self.x_y_split(data)
+        # data_x, _ = self.x_y_split(data)
+        data_x = data
         try:
             for epoch in range(1, max_epochs + 1):
                 if epoch % debug['epochs'] == 0:
