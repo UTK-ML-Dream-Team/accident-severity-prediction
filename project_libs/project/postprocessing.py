@@ -14,6 +14,7 @@
 
 import numpy as np
 from itertools import product
+import random
 
 def NB_fusion(ytest, ymodels):
 
@@ -82,3 +83,54 @@ def NB_fusion(ytest, ymodels):
 
     return fused_label
 
+
+def BKS(ytest, ymodels):
+    
+    # All possible combinations of classifier labels
+    
+    classifier_labels = np.array(list(product([0, 1], repeat=len(ymodels))))
+    
+    true0 = np.transpose(np.array(ymodels))[np.where(ytest==0)] # ymodel results where true class is 0
+    true1 = np.transpose(np.array(ymodels))[np.where(ytest==1)] # ymodel results where true class is 1
+    
+    n0 = []
+    n1 = []
+    final_labels = []
+    
+    for c in range(len(classifier_labels)): # Count number of samples from each TRUE CLASS 
+                                            # that are labeled with each combination     
+        num0 = 0
+        num1 = 0
+        
+        for i in range(len(true0)): 
+            if np.all(true0[i] == classifier_labels[c]): 
+                num0+=1
+                
+        n0.append(num0)
+
+        for i in range(len(true1)):
+            if np.all(true1[i] == classifier_labels[c]): 
+                num1+=1
+        
+        n1.append(num1)
+        
+        if num1 > num0:
+            final_labels.append(1)
+            
+        elif num0 > num1:
+            final_labels.append(0)
+            
+        elif num0 == num1: 
+            final_labels.append(random.choice([0,1]))
+            
+    fused_label = []  
+    ymodels_t = np.transpose(np.array(ymodels))
+    
+    for i in range(len(ymodels_t)): 
+        for c in range(len(classifier_labels)):
+            if np.all(ymodels_t[i] == classifier_labels[c]): 
+                fused_label.append(final_labels[c])
+                
+    return fused_label
+    
+     
