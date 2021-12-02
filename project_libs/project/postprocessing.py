@@ -12,6 +12,8 @@
 # ymodels.append(ymodel_LR)
 # etc 
 
+from itertools import product
+
 def NB_fusion(ytest, ymodels):
 
     class0prob = [] # label probabilities for true class 0 for each of the different classifiers
