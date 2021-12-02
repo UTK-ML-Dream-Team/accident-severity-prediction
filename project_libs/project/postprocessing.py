@@ -12,6 +12,7 @@
 # ymodels.append(ymodel_LR)
 # etc 
 
+import numpy as np
 from itertools import product
 
 def NB_fusion(ytest, ymodels):
