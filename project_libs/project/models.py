@@ -610,6 +610,27 @@ class MultiLayerPerceptron:
         return data_x_c1, data_x_c2
 
 
+def train_mlp(dataset, targets, hidden_layers, activations, loss_functions, lr, momentum,
+              batch_size, early_stopping, max_epochs, regularization_param, shuffle,
+              symmetric_weights, seed, debug):
+    # Number of units per layer
+    n_units = [int(dataset.shape[1] - 1), *hidden_layers,
+               int(dataset[:, -1].max() + 1)]
+    # Initialize Model
+    mlp_model = MultiLayerPerceptron(units=n_units, activations=activations,
+                                     symmetric_weights=symmetric_weights,
+                                     loss_functions=loss_functions, seed=seed)
+    # Train
+    accuracies, losses, times = mlp_model.train(data=dataset, one_hot_y=targets,
+                                                batch_size=batch_size, lr=lr, momentum=momentum,
+                                                shuffle=shuffle, max_epochs=max_epochs,
+                                                early_stopping=early_stopping,
+                                                regularization_param=regularization_param,
+                                                debug=debug)
+
+    return mlp_model, accuracies, losses, times
+
+
 # Implementation of kmeans clustering algorithm
 class kmeans:
 
