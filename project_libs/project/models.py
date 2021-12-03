@@ -761,3 +761,126 @@ class kmeans:
         plt.ylabel("Membership Changes (%)")
         plt.grid(True)
         plt.show()
+
+        
+# functions used for classification with kNN
+
+def accuracy_score(y, y_model):
+
+    assert len(y) == len(y_model)
+
+    classn = len(np.unique(y))    # number of different classes
+    correct_all = y == y_model    # all correctly classified samples
+
+    acc_overall = np.sum(correct_all) / len(y)
+    acc_i = []        # list stores classwise accuracy
+    
+    for i in np.unique(y):
+        acc_i.append(np.sum(correct_all[y == i]) / len(y[y == i]))
+
+    return acc_i, acc_overall
+
+
+def euclidean(x1, x2):
+    edist = np.sqrt(np.sum((x1 - x2)**2))
+    return edist
+
+
+def kNN_distances(train, ytrain, test):
+
+    alldist = []
+    # Calculate distance between test samples and all samples in training set
+    
+    for i in test: # Loop through all observations in test set
+         
+        point_dist = [] # Array to store distances from each observation in test set
+         
+        for j in range(len(train)): # Loop through each point in the training data
+            distances = euclidean(np.array(train[j,:]) , i) # Calculate Euclidean distances
+            point_dist.append(distances) # Add distance to array
+        point_dist = np.array(point_dist) 
+        alldist.append(point_dist)
+    alldist = np.array(alldist)
+    return alldist
+
+def bestk(train, alldist, ytrain, ytest, k_opt): # Working on this function... 
+    
+    accuracy_classwise = []
+    accuracy_overall = []
+    
+    # Assessing accuracy for different values of k
+    
+    for k in k_opt: 
+        ypredict_knn = kNN(train, alldist, ytrain, ytest, k)
+        acc_i, acc_overall = accuracy_score(ytest, ypredict_knn)
+        accuracy_overall.append(acc_overall)
+        accuracy_classwise.append(acc_i)
+        
+    accuracy_overall = np.array(accuracy_overall) # List of overall accuracy values for each k
+    accuracy_classwise = np.array(accuracy_classwise) # List of classwise accuracy values for each k
+    
+    # optimal k for maximizing overall accuracy
+    best_k_overall = k_opt[accuracy_overall.argmax()] 
+    
+    # best overall accuracy
+    best_acc_overall = accuracy_overall[accuracy_overall.argmax()] 
+    
+    # class 0 accuracy for k with best overall accuracy
+    class0_acc_overall = accuracy_classwise[accuracy_overall.argmax()][0] 
+    
+    # class 1 accuracy for k with best overall accuracy
+    class1_acc_overall = accuracy_classwise[accuracy_overall.argmax()][1] 
+    
+    # optimal k for maximizing class 0 accuracy
+    best_k_class0 = k_opt[accuracy_classwise[:,0].argmax()] 
+    
+    # best class 0 accuracy
+    best_acc_class0 = accuracy_classwise[accuracy_classwise[:,0].argmax()][0] 
+    
+    # overall accuracy for k with best class 0 accuracy
+    overall_acc_class0 = accuracy_overall[accuracy_classwise[:,0].argmax()]
+    
+    # class 1 accuracy for k with best class 0 accuracy
+    class1_acc_class0 = accuracy_classwise[accuracy_classwise[:,0].argmax()][1] 
+    
+    # optimal k for maximizing class 1 accuracy
+    best_k_class1 = k_opt[accuracy_classwise[:,1].argmax()] 
+    
+    #  best class 1 accuracy
+    best_acc_class1 = accuracy_classwise[accuracy_classwise[:,1].argmax()][1] 
+    
+    # overall accuracy for k with best class 1 accuracy
+    overall_acc_class1 = accuracy_overall[accuracy_classwise[:,1].argmax()]
+    
+    # class 1 accuracy for k with best class 0 accuracy
+    class0_acc_class1 = accuracy_classwise[accuracy_classwise[:,1].argmax()][0]
+    
+    # Combine values for maximizing overall accuracy
+    k_overall = [best_k_overall, best_acc_overall, class0_acc_overall, class1_acc_overall]
+    
+    # Combine values for maximizing class 0 accuracy
+    k_class0 = [best_k_class0, best_acc_class0, overall_acc_class0, class1_acc_class0]
+    
+    # Combine values for maximizing class 0 accuracy
+    k_class1 = [best_k_class1, best_acc_class1, overall_acc_class1, class0_acc_class1]
+    
+    return k_opt, accuracy_overall, accuracy_classwise, k_overall, k_class0, k_class1
+
+
+
+def kNN(train, alldist, ytrain, ytest, k):
+    ypredict = []
+    
+    for i in range(len(alldist)):
+        dist = np.argsort(alldist[i])[:k] # Sort the array of distances and retain k points
+        labels = ytrain[dist] # Getting y-values for k nearest neighbors in training set 
+    
+    # Sort and use majority voting for different values of k
+        lab = np.bincount(labels).argmax() # Most frequent value in array
+        ypredict.append(lab)
+ 
+    return ypredict
+
+
+
+
