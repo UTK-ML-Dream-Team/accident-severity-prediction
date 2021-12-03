@@ -12,6 +12,8 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from project_libs import timeit
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression
+import warnings
+
 
 logger = ColorizedLogger('Models', 'green')
 
@@ -261,11 +263,15 @@ class Log_Reg:
             self.bias -= self.learning_rate * partial_d
 
     def F1_score_func(self, actual, pred):
-        F1_Score = f1_score(actual, pred)
+        self.cm = confusion_matrix(actual, pred)
+        accuracy = (self.cm[0,0]+self.cm[1,1])/self.cm.sum()
+        precision = self.cm[1,1]/(self.cm[1,1]+self.cm[0,1])
+        sensitivity = self.cm[1,1]/(self.cm[1,1]+self.cm[1,0])
+        F1_Score = (2*precision*sensitivity)/(precision+sensitivity)
         self.F1_Score = F1_Score
 
     def evaluation(self, preds, actual):
-        self.cm = confusion_matrix(actual, preds)
+        #self.cm = confusion_matrix(actual, preds)
         accuracy = accuracy_score(actual, preds)
 
         pt = PrettyTable(['Logistic Regression', 'Accuracy', 'Sensitivity', 
@@ -275,8 +281,8 @@ class Log_Reg:
                 self.cm[0,0]/(self.cm[0,1]+self.cm[0,0]), 
                 self.cm[1,1]/(self.cm[1,1]+self.cm[0,1]), 
                 self.F1_Score])
-        print(self.cm, '\n\n', pt)
-
+        print(self.cm, '\n\n', pt)   
+        
 
 # Implementation of neural network
 class MultiLayerPerceptron:
@@ -882,5 +888,19 @@ def kNN(train, alldist, ytrain, ytest, k):
     return ypredict
 
 
-
+# For evaluation with an sklearn confusion matrix:
+def evaluate_cm(sklearn_cm, output):
+    accuracy = (sklearn_cm[0,0]+sklearn_cm[1,1])/sklearn_cm.sum()
+    precision = sklearn_cm[1,1]/(sklearn_cm[1,1]+sklearn_cm[0,1])
+    sensitivity = sklearn_cm[1,1]/(sklearn_cm[1,1]+sklearn_cm[1,0])
+    specificity = sklearn_cm[0,0]/(sklearn_cm[0,0]+sklearn_cm[0,1])
+    f1_score = (2*precision*sensitivity)/(precision+sensitivity)
+    
+    if output == 'PRINT':
+        print('accuracy: ', accuracy, 'precision: ', precision,
+              'sensitivity: ', sensitivity, 'specificity: ',
+              specificity, 'f1_score: ', f1_score)
+    
+    elif output == 'RETURN':
+        return (accuracy, precision, sensitivity, specificity, f1_score)
 
