@@ -8,8 +8,10 @@ from scipy.spatial import distance
 from prettytable import PrettyTable
 from project_libs import ColorizedLogger
 from sklearn.metrics import f1_score
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix
 from project_libs import timeit
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.linear_model import LogisticRegression
 
 logger = ColorizedLogger('Models', 'green')
 
@@ -232,30 +234,13 @@ class BayesianCase:
         logger.info(f"|{'Negative':^15}|{self.fp[mtype]:^15}|{self.tn[mtype]:^15}|", color='red')
 
 # Logistic Regression Algorithm        
-class Logistic_Regression:
+class Log_Reg:
 
     def __init__(self, learning_rate, iters):
         self.learning_rate = learning_rate
         self.iters = iters
         self.weights, self.bias = None, None
-
-    def f1_score(self, actual, pred):
-        self.F1_Score = f1_score(actual, preds)
-    
-    def evaluation(self, preds, actual):
-        self.cm = confusion_matrix(actual, preds)
-        accuracy = accuracy_score(actual, preds)
-
-        pt = PrettyTable(['Logistic Regression', 'Accuracy', 'Sensitivity', 
-                          'Specificity', 'Precision', 'F1 Score']) 
-        pt.add_row(['Evaluation', accuracy, 
-                    self.cm[1,1]/(self.cm[1,1]+self.cm[1,0]), 
-                    self.cm[0,0]/(self.cm[0,1]+self.cm[0,0]), 
-                    self.cm[1,1]/(self.cm[1,1]+self.cm[0,1]), 
-                    self.F1_Score])
         
-        print(self.cm, '\n\n', pt)
-    
     def predict(self, X, threshold):
         linear_pred = (np.dot(X, self.weights) + self.bias)
         probabilities = 1 / (1 + np.exp(-1*linear_pred))
@@ -274,6 +259,24 @@ class Logistic_Regression:
             
             self.weights -= self.learning_rate * partial_w
             self.bias -= self.learning_rate * partial_d
+
+    def F1_score_func(self, actual, pred):
+        F1_Score = f1_score(actual, pred)
+        self.F1_Score = F1_Score
+
+    def evaluation(self, preds, actual):
+        self.cm = confusion_matrix(actual, preds)
+        accuracy = accuracy_score(actual, preds)
+
+        pt = PrettyTable(['Logistic Regression', 'Accuracy', 'Sensitivity', 
+                      'Specificity', 'Precision', 'F1 Score']) 
+        pt.add_row(['Evaluation', accuracy, 
+                self.cm[1,1]/(self.cm[1,1]+self.cm[1,0]), 
+                self.cm[0,0]/(self.cm[0,1]+self.cm[0,0]), 
+                self.cm[1,1]/(self.cm[1,1]+self.cm[0,1]), 
+                self.F1_Score])
+        print(self.cm, '\n\n', pt)
+
 
 # Implementation of neural network
 class MultiLayerPerceptron:
