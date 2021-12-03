@@ -9,6 +9,8 @@ from prettytable import PrettyTable
 from project_libs import ColorizedLogger
 from sklearn.metrics import f1_score
 from sklearn.metrics import accuracy_score
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.metrics import classification_report
 
 
 logger = ColorizedLogger('Models', 'green')
