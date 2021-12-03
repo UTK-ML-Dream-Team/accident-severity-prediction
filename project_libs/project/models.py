@@ -1026,3 +1026,84 @@ def acc_crossval(yvalid, ypredict, kfold):
 
 
     return avg_overall, avg_class0, avg_class1
+
+
+#Winner-Take-All Code
+
+#Accuracy for WTA
+def accuracy_score(y, y_model):
+
+    assert len(y) == len(y_model)
+
+    classn = len(np.unique(y))    # number of different classes
+    correct_all = y == y_model    # all correctly classified samples
+
+    acc_overall = np.sum(correct_all) / len(y)
+    acc_i = []        # this list7 stores classwise accuracy
+    
+    
+    for i in np.unique(y):
+        acc_i.append(np.sum(correct_all[y==i])/len(y[y==i]))
+        
+        
+    return acc_i, acc_overall, y, y_model
+
+#Euclidian Distance for WTA
+def euclid (x1, x2):
+        edist = np.sqrt(np.sum((x1 - x2)**2))
+        
+        return edist
+
+#WTA Function
+def win(Xtest, ytest, k, kcenters, epsilon, max_iter):
+   
+    cent_prev = [] #previous center
+    group = []
+    group_prev = []
+    group_change = []
+    change = []
+    epoch = []
+   
+    e = 0
+   
+    for it in range(max_iter):  
+       
+        change = []
+        group = []
+       
+        for i in Xtest: # go through all obs in data
+            cent_dist = [] # store distances from each obs in test data
+            kcenters = np.array(kcenters)
+
+            for j in range(len(kcenters)): # go through each of kcenters
+                distances = euclid((kcenters[j, :]), i) # distance to each center (min euclidian)
+                cent_dist.append(distances) 
+
+            label = cent_dist.index(min(cent_dist)) # decision of closest distance
+            group.append(label)
+           
+            # see lecture 6 slides - moves point closer to closest center
+
+            closest = kcenters[label, :] # finds closest center & label is the index value
+
+           
+            # w(new) = w(old) + epsilon*(x-w(old)) - equation from lecture slides
+            #updating closest cluster
+            new_center = closest + epsilon*(i - closest) 
+            kcenters[label, :] = new_center 
+         
+
+        group_prev.append(np.array(group)) 
+ 
+        e +=1
+        epoch.append(e)
+        if it == 0:
+            change = 1
+            group_change.append(change)
+        if it > 0:
+            change = (np.sum(np.array(group_prev)[it,:] != np.array(group_prev)[it-1,:]))
+            group_change.append(change / len(Xtest))    
+        if it > 0 and change == 0.0:
+            break
+    class_win_acc, overall_win_acc, y, y_model = accuracy_score(ytest, group)
+    return epoch, group_change, class_win_acc, overall_win_acc, y, y_model
