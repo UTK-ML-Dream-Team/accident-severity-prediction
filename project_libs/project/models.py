@@ -1107,3 +1107,15 @@ def win(Xtest, ytest, k, kcenters, epsilon, max_iter):
             break
     class_win_acc, overall_win_acc, y, y_model = accuracy_score(ytest, group)
     return epoch, group_change, class_win_acc, overall_win_acc, y, y_model
+
+#choosing initial centers for WTA
+import random
+
+def cent(Xtest, k): #choses random centers to start function
+    
+    #random.seed(100)
+    nte, nf = Xtest.shape
+   
+    ind = np.random.choice(nte, size=k, replace=False) # index of random rows
+    kcenters = Xtest.iloc[ind, :] 
+    return kcenters, k
