@@ -231,6 +231,49 @@ class BayesianCase:
         logger.info(f"|{'Positive':^15}|{self.tp[mtype]:^15}|{self.fn[mtype]:^15}|", color='red')
         logger.info(f"|{'Negative':^15}|{self.fp[mtype]:^15}|{self.tn[mtype]:^15}|", color='red')
 
+# Logistic Regression Algorithm        
+class LogisticRegression:
+
+    def __init__(self, learning_rate, iters):
+        self.learning_rate = learning_rate
+        self.iters = iters
+        self.weights, self.bias = None, None
+
+    def f1_score(self, actual, pred):
+        self.F1_Score = f1_score(actual, preds)
+    
+    def evaluation(self, preds, actual):
+        self.cm = confusion_matrix(actual, preds)
+        accuracy = accuracy_score(actual, preds)
+
+        pt = PrettyTable(['Logistic Regression', 'Accuracy', 'Sensitivity', 
+                          'Specificity', 'Precision', 'F1 Score']) 
+        pt.add_row(['Evaluation', accuracy, 
+                    self.cm[1,1]/(self.cm[1,1]+self.cm[1,0]), 
+                    self.cm[0,0]/(self.cm[0,1]+self.cm[0,0]), 
+                    self.cm[1,1]/(self.cm[1,1]+self.cm[0,1]), 
+                    self.F1_Score])
+        
+        print(self.cm, '\n\n', pt)
+    
+    def predict(self, X, threshold):
+        linear_pred = (np.dot(X, self.weights) + self.bias)
+        probabilities = 1 / (1 + np.exp(-1*linear_pred))
+        return [1 if i > threshold else 0 for i in probabilities]
+           
+    def fit(self, X, y):
+        self.weights = np.zeros(X.shape[1])
+        self.bias = 0
+
+        for i in range(self.iters):
+            linear_pred = np.dot(X, self.weights) + self.bias
+            probability = 1 / (1 + np.exp(-1*linear_pred))
+            
+            partial_w = (1 / X.shape[0]) * (2 * np.dot(X.T, (probability - y)))
+            partial_d = (1 / X.shape[0]) * (2 * np.sum(probability - y))
+            
+            self.weights -= self.learning_rate * partial_w
+            self.bias -= self.learning_rate * partial_d
 
 # Implementation of neural network
 class MultiLayerPerceptron:
