@@ -232,7 +232,7 @@ class BayesianCase:
         logger.info(f"|{'Negative':^15}|{self.fp[mtype]:^15}|{self.tn[mtype]:^15}|", color='red')
 
 # Logistic Regression Algorithm        
-class LogisticRegression:
+class Logistic_Regression:
 
     def __init__(self, learning_rate, iters):
         self.learning_rate = learning_rate
