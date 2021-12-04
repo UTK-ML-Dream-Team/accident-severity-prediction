@@ -740,7 +740,7 @@ class kmeans:
         class_1_accuracy = 100.0 * sum(y_pred[y_true == 1] == y_true[y_true == 1]) / sum(y_true == 1)
 
         # print("Kmeans Classification Report:")
-        print(f"Overall Accuracy: {round(100.0 * accuracy_score(y_pred, y_true), 2)} %")
+        print(f"Overall Accuracy: {round(100.0 * accuracy_score(y_true, y_pred), 2)} %")
         print(f"F1-Score: {round(f1_score(y_true, y_pred), 3)}")
         print(f"Class 0 accuracy: {round(class_0_accuracy, 2)} %")
         print(f"Class 1 accuracy: {round(class_1_accuracy, 2)} %")
@@ -755,7 +755,7 @@ class kmeans:
 
     def predict(self, data, y_true):
         y_pred = np.argmin(distance.cdist(data, self.centroids, 'euclidean'), axis=1)
-        if accuracy_score(y_pred, y_true) < 0.5:
+        if accuracy_score(y_true, y_pred) < 0.5:
             y_pred = 1 - y_pred
         return y_pred
 
@@ -771,7 +771,7 @@ class kmeans:
         
 # functions used for classification with kNN
 
-def accuracy_score(y, y_model):
+def accuracy_score_genn(y, y_model):
 
     assert len(y) == len(y_model)
 
@@ -1031,7 +1031,7 @@ def acc_crossval(yvalid, ypredict, kfold):
 #Winner-Take-All Code
 
 #Accuracy for WTA
-def accuracy_score(y, y_model):
+def accuracy_score_sara(y, y_model):
 
     assert len(y) == len(y_model)
 
