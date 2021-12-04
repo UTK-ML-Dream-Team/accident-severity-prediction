@@ -771,7 +771,8 @@ class kmeans:
         
 # functions used for classification with kNN
 
-def accuracy_score_genn(y, y_model):
+
+def accuracy_score_knn(y, y_model):
 
     assert len(y) == len(y_model)
 
@@ -809,7 +810,7 @@ def kNN_distances(train, ytrain, test):
     alldist = np.array(alldist)
     return alldist
 
-def bestk(train, alldist, ytrain, ytest, k_opt): # Working on this function... 
+def bestk(train, alldist, ytrain, ytest, k_opt): 
     
     accuracy_classwise = []
     accuracy_overall = []
@@ -818,7 +819,7 @@ def bestk(train, alldist, ytrain, ytest, k_opt): # Working on this function...
     
     for k in k_opt: 
         ypredict_knn = kNN(train, alldist, ytrain, ytest, k)
-        acc_i, acc_overall = accuracy_score(ytest, ypredict_knn)
+        acc_i, acc_overall = accuracy_score_knn(ytest, ypredict_knn)
         accuracy_overall.append(acc_overall)
         accuracy_classwise.append(acc_i)
         
@@ -1031,7 +1032,7 @@ def acc_crossval(yvalid, ypredict, kfold):
 #Winner-Take-All Code
 
 #Accuracy for WTA
-def accuracy_score_sara(y, y_model):
+def accuracy_score_wta(y, y_model):
 
     assert len(y) == len(y_model)
 
@@ -1105,7 +1106,7 @@ def win(Xtest, ytest, k, kcenters, epsilon, max_iter):
             group_change.append(change / len(Xtest))    
         if it > 0 and change == 0.0:
             break
-    class_win_acc, overall_win_acc, y, y_model = accuracy_score(ytest, group)
+    class_win_acc, overall_win_acc, y, y_model = accuracy_score_wta(ytest, group)
     return epoch, group_change, class_win_acc, overall_win_acc, y, y_model
 
 #choosing initial centers for WTA
