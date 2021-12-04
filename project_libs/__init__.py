@@ -2,6 +2,7 @@
 
 from project_libs.fancy_logger import ColorizedLogger
 from project_libs.configuration import Configuration
+from project_libs.timing_tools import timeit
 from project_libs.project import *
 
 
