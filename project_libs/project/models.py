@@ -14,7 +14,6 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression
 import warnings
 
-
 logger = ColorizedLogger('Models', 'green')
 
 np.seterr(divide='raise')
@@ -112,10 +111,14 @@ class BayesianCase:
             first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
                                          np.linalg.inv(current_cov))
         except np.linalg.LinAlgError as e:
-            logger.debug(f"{e}")
             current_cov += + 10e-5
-            first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
-                                         np.linalg.inv(current_cov))
+            if str(e).strip() == 'Singular matrix':
+                first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
+                                             np.linalg.pinv(current_cov))
+            else:
+                logger.debug(f"{e}")
+                first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
+                                             np.linalg.inv(current_cov))
 
         first_term = -(1 / 2) * np.matmul(first_term_dot_1,
                                           (self.x_test[sample] - self.means[n_class]))
@@ -130,9 +133,13 @@ class BayesianCase:
                                          np.linalg.inv(current_covs))
         except np.linalg.LinAlgError as e:
             logger.debug(f"{e}")
-            current_covs += + 10e-5
-            first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
-                                         np.linalg.inv(current_covs))
+            if str(e).strip() == 'Singular matrix':
+                first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
+                                             np.linalg.pinv(current_covs))
+            else:
+                current_covs += + 10e-5
+                first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
+                                             np.linalg.inv(current_covs))
         except Exception as e:
             logger.debug(f"{e}")
             first_term_dot_1 = (self.x_test[sample] - self.means[n_class]).T / current_covs
@@ -235,56 +242,58 @@ class BayesianCase:
         logger.info(f"|{'Positive':^15}|{self.tp[mtype]:^15}|{self.fn[mtype]:^15}|", color='red')
         logger.info(f"|{'Negative':^15}|{self.fp[mtype]:^15}|{self.tn[mtype]:^15}|", color='red')
 
-# Logistic Regression Algorithm        
+
+# Logistic Regression Algorithm
 class Log_Reg:
 
     def __init__(self, learning_rate, iters):
         self.learning_rate = learning_rate
         self.iters = iters
         self.weights, self.bias = None, None
-        
+
     def predict(self, X, threshold):
         linear_pred = (np.dot(X, self.weights) + self.bias)
-        probabilities = 1 / (1 + np.exp(-1*linear_pred))
+        probabilities = 1 / (1 + np.exp(-1 * linear_pred))
         return [1 if i > threshold else 0 for i in probabilities]
-           
+
     def fit(self, X, y):
         self.weights = np.zeros(X.shape[1])
         self.bias = 0
 
         for i in range(self.iters):
             linear_pred = np.dot(X, self.weights) + self.bias
-            probability = 1 / (1 + np.exp(-1*linear_pred))
-            
+            probability = 1 / (1 + np.exp(-1 * linear_pred))
+
             partial_w = (1 / X.shape[0]) * (2 * np.dot(X.T, (probability - y)))
             partial_d = (1 / X.shape[0]) * (2 * np.sum(probability - y))
-            
+
             self.weights -= self.learning_rate * partial_w
             self.bias -= self.learning_rate * partial_d
 
     def F1_score_func(self, actual, pred):
         self.cm = confusion_matrix(actual, pred)
-        accuracy = (self.cm[0,0]+self.cm[1,1])/self.cm.sum()
-        precision = self.cm[1,1]/(self.cm[1,1]+self.cm[0,1])
-        sensitivity = self.cm[1,1]/(self.cm[1,1]+self.cm[1,0])
-        F1_Score = (2*precision*sensitivity)/(precision+sensitivity)
+        accuracy = (self.cm[0, 0] + self.cm[1, 1]) / self.cm.sum()
+        precision = self.cm[1, 1] / (self.cm[1, 1] + self.cm[0, 1])
+        sensitivity = self.cm[1, 1] / (self.cm[1, 1] + self.cm[1, 0])
+        F1_Score = (2 * precision * sensitivity) / (precision + sensitivity)
         self.F1_Score = F1_Score
 
     def evaluation(self, preds, actual):
-        #self.cm = confusion_matrix(actual, preds)
+        # self.cm = confusion_matrix(actual, preds)
         accuracy = accuracy_score(actual, preds)
 
-        pt = PrettyTable(['Logistic Regression', 'Accuracy', 'Sensitivity', 
-                      'Specificity', 'Precision', 'F1 Score']) 
-        pt.add_row(['Evaluation', accuracy, 
-                self.cm[1,1]/(self.cm[1,1]+self.cm[1,0]), 
-                self.cm[0,0]/(self.cm[0,1]+self.cm[0,0]), 
-                self.cm[1,1]/(self.cm[1,1]+self.cm[0,1]), 
-                self.F1_Score])
-        print(self.cm, '\n\n', pt)   
-        
+        pt = PrettyTable(['Logistic Regression', 'Accuracy', 'Sensitivity',
+                          'Specificity', 'Precision', 'F1 Score'])
+        pt.add_row(['Evaluation', accuracy,
+                    self.cm[1, 1] / (self.cm[1, 1] + self.cm[1, 0]),
+                    self.cm[0, 0] / (self.cm[0, 1] + self.cm[0, 0]),
+                    self.cm[1, 1] / (self.cm[1, 1] + self.cm[0, 1]),
+                    self.F1_Score])
+        print(self.cm, '\n\n', pt)
 
-# Implementation of neural network
+    # Implementation of neural network
+
+
 class MultiLayerPerceptron:
     """ Multi Layer Perceptron Model. """
     n_layers: int
@@ -768,19 +777,18 @@ class kmeans:
         plt.grid(True)
         plt.show()
 
-        
+
 # functions used for classification with kNN
 
 def accuracy_score(y, y_model):
-
     assert len(y) == len(y_model)
 
-    classn = len(np.unique(y))    # number of different classes
-    correct_all = y == y_model    # all correctly classified samples
+    classn = len(np.unique(y))  # number of different classes
+    correct_all = y == y_model  # all correctly classified samples
 
     acc_overall = np.sum(correct_all) / len(y)
-    acc_i = []        # list stores classwise accuracy
-    
+    acc_i = []  # list stores classwise accuracy
+
     for i in np.unique(y):
         acc_i.append(np.sum(correct_all[y == i]) / len(y[y == i]))
 
@@ -788,241 +796,242 @@ def accuracy_score(y, y_model):
 
 
 def euclidean(x1, x2):
-    edist = np.sqrt(np.sum((x1 - x2)**2))
+    edist = np.sqrt(np.sum((x1 - x2) ** 2))
     return edist
 
 
 def kNN_distances(train, ytrain, test):
-
     alldist = []
     # Calculate distance between test samples and all samples in training set
-    
-    for i in test: # Loop through all observations in test set
-         
-        point_dist = [] # Array to store distances from each observation in test set
-         
-        for j in range(len(train)): # Loop through each point in the training data
-            distances = euclidean(np.array(train[j,:]) , i) # Calculate Euclidean distances
-            point_dist.append(distances) # Add distance to array
-        point_dist = np.array(point_dist) 
+
+    for i in test:  # Loop through all observations in test set
+
+        point_dist = []  # Array to store distances from each observation in test set
+
+        for j in range(len(train)):  # Loop through each point in the training data
+            distances = euclidean(np.array(train[j, :]), i)  # Calculate Euclidean distances
+            point_dist.append(distances)  # Add distance to array
+        point_dist = np.array(point_dist)
         alldist.append(point_dist)
     alldist = np.array(alldist)
     return alldist
 
-def bestk(train, alldist, ytrain, ytest, k_opt): # Working on this function... 
-    
+
+def bestk(train, alldist, ytrain, ytest, k_opt):  # Working on this function...
+
     accuracy_classwise = []
     accuracy_overall = []
-    
+
     # Assessing accuracy for different values of k
-    
-    for k in k_opt: 
+
+    for k in k_opt:
         ypredict_knn = kNN(train, alldist, ytrain, ytest, k)
         acc_i, acc_overall = accuracy_score(ytest, ypredict_knn)
         accuracy_overall.append(acc_overall)
         accuracy_classwise.append(acc_i)
-        
-    accuracy_overall = np.array(accuracy_overall) # List of overall accuracy values for each k
-    accuracy_classwise = np.array(accuracy_classwise) # List of classwise accuracy values for each k
-    
+
+    accuracy_overall = np.array(accuracy_overall)  # List of overall accuracy values for each k
+    accuracy_classwise = np.array(accuracy_classwise)  # List of classwise accuracy values for each k
+
     # optimal k for maximizing overall accuracy
-    best_k_overall = k_opt[accuracy_overall.argmax()] 
-    
+    best_k_overall = k_opt[accuracy_overall.argmax()]
+
     # best overall accuracy
-    best_acc_overall = accuracy_overall[accuracy_overall.argmax()] 
-    
+    best_acc_overall = accuracy_overall[accuracy_overall.argmax()]
+
     # class 0 accuracy for k with best overall accuracy
-    class0_acc_overall = accuracy_classwise[accuracy_overall.argmax()][0] 
-    
+    class0_acc_overall = accuracy_classwise[accuracy_overall.argmax()][0]
+
     # class 1 accuracy for k with best overall accuracy
-    class1_acc_overall = accuracy_classwise[accuracy_overall.argmax()][1] 
-    
+    class1_acc_overall = accuracy_classwise[accuracy_overall.argmax()][1]
+
     # optimal k for maximizing class 0 accuracy
-    best_k_class0 = k_opt[accuracy_classwise[:,0].argmax()] 
-    
+    best_k_class0 = k_opt[accuracy_classwise[:, 0].argmax()]
+
     # best class 0 accuracy
-    best_acc_class0 = accuracy_classwise[accuracy_classwise[:,0].argmax()][0] 
-    
+    best_acc_class0 = accuracy_classwise[accuracy_classwise[:, 0].argmax()][0]
+
     # overall accuracy for k with best class 0 accuracy
-    overall_acc_class0 = accuracy_overall[accuracy_classwise[:,0].argmax()]
-    
+    overall_acc_class0 = accuracy_overall[accuracy_classwise[:, 0].argmax()]
+
     # class 1 accuracy for k with best class 0 accuracy
-    class1_acc_class0 = accuracy_classwise[accuracy_classwise[:,0].argmax()][1] 
-    
+    class1_acc_class0 = accuracy_classwise[accuracy_classwise[:, 0].argmax()][1]
+
     # optimal k for maximizing class 1 accuracy
-    best_k_class1 = k_opt[accuracy_classwise[:,1].argmax()] 
-    
+    best_k_class1 = k_opt[accuracy_classwise[:, 1].argmax()]
+
     #  best class 1 accuracy
-    best_acc_class1 = accuracy_classwise[accuracy_classwise[:,1].argmax()][1] 
-    
+    best_acc_class1 = accuracy_classwise[accuracy_classwise[:, 1].argmax()][1]
+
     # overall accuracy for k with best class 1 accuracy
-    overall_acc_class1 = accuracy_overall[accuracy_classwise[:,1].argmax()]
-    
+    overall_acc_class1 = accuracy_overall[accuracy_classwise[:, 1].argmax()]
+
     # class 1 accuracy for k with best class 0 accuracy
-    class0_acc_class1 = accuracy_classwise[accuracy_classwise[:,1].argmax()][0]
-    
+    class0_acc_class1 = accuracy_classwise[accuracy_classwise[:, 1].argmax()][0]
+
     # Combine values for maximizing overall accuracy
     k_overall = [best_k_overall, best_acc_overall, class0_acc_overall, class1_acc_overall]
-    
+
     # Combine values for maximizing class 0 accuracy
     k_class0 = [best_k_class0, best_acc_class0, overall_acc_class0, class1_acc_class0]
-    
+
     # Combine values for maximizing class 0 accuracy
     k_class1 = [best_k_class1, best_acc_class1, overall_acc_class1, class0_acc_class1]
-    
-    return k_opt, accuracy_overall, accuracy_classwise, k_overall, k_class0, k_class1
 
+    return k_opt, accuracy_overall, accuracy_classwise, k_overall, k_class0, k_class1
 
 
 def kNN(train, alldist, ytrain, ytest, k):
     ypredict = []
-    
+
     for i in range(len(alldist)):
-        dist = np.argsort(alldist[i])[:k] # Sort the array of distances and retain k points
-        labels = ytrain[dist] # Getting y-values for k nearest neighbors in training set 
-    
-    # Sort and use majority voting for different values of k
-        lab = np.bincount(labels).argmax() # Most frequent value in array
+        dist = np.argsort(alldist[i])[:k]  # Sort the array of distances and retain k points
+        labels = ytrain[dist]  # Getting y-values for k nearest neighbors in training set
+
+        # Sort and use majority voting for different values of k
+        lab = np.bincount(labels).argmax()  # Most frequent value in array
         ypredict.append(lab)
- 
+
     return ypredict
 
 
 # For evaluation with an sklearn confusion matrix:
 def evaluate_cm(sklearn_cm, output):
-    accuracy = (sklearn_cm[0,0]+sklearn_cm[1,1])/sklearn_cm.sum()
-    precision = sklearn_cm[1,1]/(sklearn_cm[1,1]+sklearn_cm[0,1])
-    sensitivity = sklearn_cm[1,1]/(sklearn_cm[1,1]+sklearn_cm[1,0])
-    specificity = sklearn_cm[0,0]/(sklearn_cm[0,0]+sklearn_cm[0,1])
-    f1_score = (2*precision*sensitivity)/(precision+sensitivity)
-    
+    accuracy = (sklearn_cm[0, 0] + sklearn_cm[1, 1]) / sklearn_cm.sum()
+    precision = sklearn_cm[1, 1] / (sklearn_cm[1, 1] + sklearn_cm[0, 1])
+    sensitivity = sklearn_cm[1, 1] / (sklearn_cm[1, 1] + sklearn_cm[1, 0])
+    specificity = sklearn_cm[0, 0] / (sklearn_cm[0, 0] + sklearn_cm[0, 1])
+    f1_score = (2 * precision * sensitivity) / (precision + sensitivity)
+
     if output == 'PRINT':
         print('accuracy: ', accuracy, 'precision: ', precision,
               'sensitivity: ', sensitivity, 'specificity: ',
               specificity, 'f1_score: ', f1_score)
-    
+
     elif output == 'RETURN':
         return (accuracy, precision, sensitivity, specificity, f1_score)
 
-# Cross-validation    
-    
+
+# Cross-validation
+
 def crossval_split(data, kfold):
-    
-### --- CLASS 0 --- ###
-    
-# Get samples for class 0
-    data0 = data[data[:,-1] == 0]
-    n0 = data0.shape[0] # number of samples in class 0
+    ### --- CLASS 0 --- ###
 
+    # Get samples for class 0
+    data0 = data[data[:, -1] == 0]
+    n0 = data0.shape[0]  # number of samples in class 0
 
-    valid0 = {} # Values for each of k validation chunks in class 0 
-    valid0_ind = {} # Indices for each of k validation chunks in class 0
+    valid0 = {}  # Values for each of k validation chunks in class 0
+    valid0_ind = {}  # Indices for each of k validation chunks in class 0
 
     train0 = {}
     train0_ind = {}
 
     # First of k chunks of data
-    valid0_ind[0] = np.random.choice(n0, size=round(n0/kfold), replace = False)
-    valid0[0] = data0[valid0_ind[0], :] # Randomly select (1/k)*n rows from data in class 0
-    ind0 = np.arange(0, n0, 1) # Indices for all rows in class 0 data
+    valid0_ind[0] = np.random.choice(n0, size=round(n0 / kfold), replace=False)
+    valid0[0] = data0[valid0_ind[0], :]  # Randomly select (1/k)*n rows from data in class 0
+    ind0 = np.arange(0, n0, 1)  # Indices for all rows in class 0 data
 
-    train0_ind[0] = np.delete(ind0, valid0_ind[0]) # Indices of n - (n/k) rows for training set for class 0
-    train0[0] = data0[train0_ind[0], :] # Training set is all samples not in validation set for class 0
+    train0_ind[0] = np.delete(ind0,
+                              valid0_ind[0])  # Indices of n - (n/k) rows for training set for class 0
+    train0[0] = data0[train0_ind[0],
+                :]  # Training set is all samples not in validation set for class 0
 
-    for k in range(1,kfold):
+    for k in range(1, kfold):
 
         # If class 0 samples cannot be evenly divided by k and the final partition has fewer than n0/k samples
-        if len(train0_ind[k-1]) < round(n0/kfold): 
-            valid0_ind[k] = train0_ind[k-1] # Validation set is all remaining samples that haven't been selected 
+        if len(train0_ind[k - 1]) < round(n0 / kfold):
+            valid0_ind[k] = train0_ind[
+                k - 1]  # Validation set is all remaining samples that haven't been selected
 
-        else: # Select indices randomly from remaining indices in training section
-            valid0_ind[k] = np.random.choice(train0_ind[k-1], size=round(n0/kfold), replace = False)
+        else:  # Select indices randomly from remaining indices in training section
+            valid0_ind[k] = np.random.choice(train0_ind[k - 1], size=round(n0 / kfold), replace=False)
 
         # Select rows with those indices from original dataset
         valid0[k] = data0[valid0_ind[k], :]
         # Delete those indices from remaining indices that have not been selected for validation set
-        train0_ind[k] = np.delete(train0_ind[k-1], np.argwhere(valid0_ind[k]))
+        train0_ind[k] = np.delete(train0_ind[k - 1], np.argwhere(valid0_ind[k]))
         # Training data is all rows not selected for validation set
         train0[k] = data0[np.delete(ind0, valid0_ind[k]), :]
 
-### --- CLASS 1 --- ###
+    ### --- CLASS 1 --- ###
 
     # Get samples for class 1
-    data1 = data[data[:,-1] == 1]
-    n1 = data1.shape[0] # number of samples in class 1
+    data1 = data[data[:, -1] == 1]
+    n1 = data1.shape[0]  # number of samples in class 1
 
-    valid1 = {} # Values for each of k validation chunks in class 1 
-    valid1_ind = {} # Indices for each of k validation chunks in class 1
+    valid1 = {}  # Values for each of k validation chunks in class 1
+    valid1_ind = {}  # Indices for each of k validation chunks in class 1
 
     train1 = {}
     train1_ind = {}
 
     # First of k chunks of data
-    valid1_ind[0] = np.random.choice(n1, size=round(n1/kfold), replace = False)
-    valid1[0] = data1[valid1_ind[0], :] # Randomly select (1/k)*n rows from data in class 1
-    ind1 = np.arange(0, n1, 1) # Indices for all rows in class 0 data
+    valid1_ind[0] = np.random.choice(n1, size=round(n1 / kfold), replace=False)
+    valid1[0] = data1[valid1_ind[0], :]  # Randomly select (1/k)*n rows from data in class 1
+    ind1 = np.arange(0, n1, 1)  # Indices for all rows in class 0 data
 
-    train1_ind[0] = np.delete(ind1, valid1_ind[0]) # Indices of n - (n/k) rows for validation set for class 0
-    train1[0] = data1[train1_ind[0], :] # Validation set is all samples not in training set for class 0
+    train1_ind[0] = np.delete(ind1, valid1_ind[
+        0])  # Indices of n - (n/k) rows for validation set for class 0
+    train1[0] = data1[train1_ind[0],
+                :]  # Validation set is all samples not in training set for class 0
 
-    for k in range(1,kfold):
+    for k in range(1, kfold):
 
         # If class 1 samples cannot be evenly divided by k and the final partition has fewer than n0/k samples
-        if len(train1_ind[k-1]) < round(n1/kfold): 
-            valid1_ind[k] = train1_ind[k-1] # Validation set is all remaining samples that haven't been selected
+        if len(train1_ind[k - 1]) < round(n1 / kfold):
+            valid1_ind[k] = train1_ind[
+                k - 1]  # Validation set is all remaining samples that haven't been selected
 
-        else: # Select indices randomly from remaining data
-            valid1_ind[k] = np.random.choice(train1_ind[k-1], size=round(n1/kfold), replace = False)
+        else:  # Select indices randomly from remaining data
+            valid1_ind[k] = np.random.choice(train1_ind[k - 1], size=round(n1 / kfold), replace=False)
 
         # Select rows with those indices from remaining data
         valid1[k] = data1[valid1_ind[k], :]
         # Delete those indices from remaining data
-        train1_ind[k] = np.delete(train1_ind[k-1], np.argwhere(valid1_ind[k]))
+        train1_ind[k] = np.delete(train1_ind[k - 1], np.argwhere(valid1_ind[k]))
         # Training data is all rows not selected for validation set
         train1[k] = data1[np.delete(ind1, valid1_ind[k]), :]
-    
+
     # Combine training & validation sets for classes 0 and 1
-    
+
     training_data = {}
     validation_data = {}
     Xtrain = {}
     ytrain = {}
     Xvalid = {}
     yvalid = {}
-    
+
     for k in range(kfold):
-        training_data[k] = np.concatenate((train0[k], train1[k]), axis = 0)
+        training_data[k] = np.concatenate((train0[k], train1[k]), axis=0)
         Xtrain[k] = training_data[k][:, :-1]
         ytrain[k] = training_data[k][:, -1].astype(int)
-        
-        validation_data[k] = np.concatenate((valid0[k], valid1[k]), axis = 0)
-        Xvalid[k] = validation_data[k][:,:-1]
+
+        validation_data[k] = np.concatenate((valid0[k], valid1[k]), axis=0)
+        Xvalid[k] = validation_data[k][:, :-1]
         yvalid[k] = validation_data[k][:, -1].astype(int)
-    
+
     return Xtrain, ytrain, Xvalid, yvalid, training_data, validation_data
 
 
 def acc_crossval(yvalid, ypredict, kfold):
-    
     acc_overall = []
     acc_class0 = []
     acc_class1 = []
-    
-    for k in range(kfold):
 
+    for k in range(kfold):
         assert len(yvalid[k]) == len(ypredict[k])
 
-        correct_all = yvalid[k] == ypredict[k]    # all correctly classified samples
+        correct_all = yvalid[k] == ypredict[k]  # all correctly classified samples
 
         acc_overall.append(np.sum(correct_all) / len(yvalid[k]))
-        
+
         acc_class0.append(np.sum(correct_all[yvalid[k] == 0]) / len(yvalid[k][yvalid[k] == 0]))
         acc_class1.append(np.sum(correct_all[yvalid[k] == 1]) / len(yvalid[k][yvalid[k] == 1]))
 
-# Average accuracies
+    # Average accuracies
     avg_overall = np.mean(acc_overall)
     avg_class0 = np.mean(acc_class0)
     avg_class1 = np.mean(acc_class1)
-
 
     return avg_overall, avg_class0, avg_class1
