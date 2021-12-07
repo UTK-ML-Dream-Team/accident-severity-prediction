@@ -1,16 +1,18 @@
 import numpy as np
+import pandas as pd
+import copy
 from time import time
 from typing import *
 from sklearn.svm import SVC
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from scipy.spatial import distance
+from scipy.stats import chisquare
 from prettytable import PrettyTable
 from project_libs import ColorizedLogger
-from sklearn.metrics import f1_score
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.metrics import classification_report
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
 from project_libs import timeit
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression
@@ -269,6 +271,7 @@ class Log_Reg:
         sensitivity = self.cm[1,1]/(self.cm[1,1]+self.cm[1,0])
         F1_Score = (2*precision*sensitivity)/(precision+sensitivity)
         self.F1_Score = F1_Score
+        self.accuracy = accuracy
 
     def evaluation(self, preds, actual):
         #self.cm = confusion_matrix(actual, preds)
@@ -904,6 +907,8 @@ def evaluate_cm(sklearn_cm, output):
     
     elif output == 'RETURN':
         return (accuracy, precision, sensitivity, specificity, f1_score)
+    
+    print(
 
 # Cross-validation    
     
@@ -1120,3 +1125,113 @@ def cent(Xtest, k): #choses random centers to start function
     ind = np.random.choice(nte, size=k, replace=False) # index of random rows
     kcenters = Xtest.iloc[ind, :] 
     return kcenters, k
+
+
+def tune_SKLearn_LR(X_train, X_val, X_test, y_train, y_val, y_test, param):
+
+    
+    grid = {'penalty': ['l1', 'l2', 'elasticnet', 'none'],
+            'dual': [False],
+            'fit_intercept': [True, False],
+            'solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'],
+            'C': np.linspace(0.01, 2, 20),
+            'multi_class': ['auto', 'ovr', 'multinomial'],
+            'warm_start': [True, False]}
+
+    
+    LR = LogisticRegression(max_iter=300)
+    
+    if param == 'full':
+        print("=========================================")
+        print(f"\033[1m Logistic Regression Tuning Results on Full Data\033[0m")
+        print("=========================================")
+        
+        xtrain, xval, xtest= X_train, X_val, X_test
+        
+    elif param == 'pca':
+        
+        print("=========================================")
+        print(f"\033[1m Logistic Regression Tuning Results on PCA Data\033[0m")
+        print("=========================================")
+        
+        xtrain, xval, xtest = pd.DataFrame(X_train), pd.DataFrame(X_val), pd.DataFrame(X_test)
+        
+    start_LR_tune = time()
+
+    LR_random = RandomizedSearchCV(estimator = LR,
+                                    param_distributions = grid, 
+                                    n_iter = 100, cv = 5, 
+                                    verbose= 0, random_state=44, refit = callable,
+                                    n_jobs = -1, scoring = ['f1_macro', 'accuracy'])
+        
+    # I combined the test and validation data because the RandomizedSearchCV
+    # uses cross validation to determine optimal parameters. 
+
+    LR_random.fit(pd.concat([xtrain, xval]), pd.concat([y_train, y_val]))
+
+    stop_LR_tune = time()
+        
+    time_to_complete = stop_LR_tune - start_LR_tune
+    best_param_dict = LR_random.best_params_
+    
+    best_model = LogisticRegression(max_iter=300, warm_start = best_param_dict['warm_start'],
+                                    solver = best_param_dict['solver'], penalty = best_param_dict['penalty'],
+                                    multi_class = best_param_dict['multi_class'], 
+                                    fit_intercept = best_param_dict['fit_intercept'], 
+                                    dual = best_param_dict['dual'], 
+                                    C = best_param_dict['C']).fit(pd.concat([xtrain, xval]), pd.concat([y_train, y_val]))
+    
+   
+    preds = best_model.predict(xtest)
+
+    conf_mat_log_reg = confusion_matrix(y_test, preds)
+    accuracy_log_reg = accuracy_score(y_test, preds)
+
+    pt = PrettyTable(['Time to Tune (s)', 'Accuracy', 'Sensitivity', 
+                          'Specificity', 'Precision', 'F1 Score (macro)']) 
+
+    pt.add_row([round(time_to_complete, 2), round(accuracy_log_reg, 2), 
+                round(conf_mat_log_reg[1,1]/(conf_mat_log_reg[1,1]+conf_mat_log_reg[1,0]), 2),
+                round(conf_mat_log_reg[0,0]/(conf_mat_log_reg[0,1]+conf_mat_log_reg[0,0]), 2),
+                round(conf_mat_log_reg[1,1]/(conf_mat_log_reg[1,1]+conf_mat_log_reg[0,1]), 2),
+                round(f1_score(y_test, preds, average = 'macro'), 2)])
+    
+    print('SKL Confusion Matrix: ', conf_mat_log_reg)
+    print('LOGISTIC REGRESSION BEST MODEL BASED ON VALIDATION:')
+    display(pt)
+    print('The best parameters are: ', best_param_dict)
+    
+    return (best_model, preds)
+
+def tune_scratch_log_reg(xtrain, ytrain, xval, yval, passes):
+    warnings.filterwarnings('ignore')
+    
+    # The warning are because exp() is blowing up but since
+    # we're dividing by exp() it becomes ~0 which is what we want
+
+    thresh = np.linspace(0.05, 0.95, passes)
+    Lrate = np.linspace(0.05, 0.5, passes)
+    results, params = [], []
+
+    start_LR_scratch_tune = time()
+
+    for th in thresh:
+        for lr in Lrate:
+            LR_model = Log_Reg(learning_rate=lr, iters=500)
+            LR_model.fit(xtrain, ytrain)
+            preds = LR_model.predict(xval, threshold=th)
+            LR_model.F1_score_func(yval, preds)
+            results.append(LR_model.accuracy)
+            params.append([th, lr])
+
+    stop_LR_scratch_tune = time()
+    time_LR_scratch_tune = stop_LR_scratch_tune - start_LR_scratch_tune
+
+    opt_n = results.index(max(results))
+    print('The optimal threshold and learning rate: ', params[opt_n],
+          '\n', 'The highest Accuracy: ',
+          results[opt_n], 'Tuning Logistic Regression Scratch took: ', time_LR_scratch_tune, 's')
+
+    opt_params = params[opt_n]
+    
+    return opt_params
