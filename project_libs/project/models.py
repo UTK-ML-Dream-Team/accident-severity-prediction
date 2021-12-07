@@ -696,7 +696,7 @@ class MultiLayerPerceptron:
 
 def train_dataset(name, dataset, targets, hidden_layers, activations, loss_functions, lr, momentum,
                   batch_size, early_stopping, max_epochs, regularization_param, shuffle,
-                  symmetric_weights, seed, debug):
+                  symmetric_weights, seed, debug, save_data=False):
     logger.nl()
     logger.info(f"Training {name} dataset..")
     # Number of units per layer
@@ -712,7 +712,7 @@ def train_dataset(name, dataset, targets, hidden_layers, activations, loss_funct
                                                 shuffle=shuffle, max_epochs=max_epochs,
                                                 early_stopping=early_stopping,
                                                 regularization_param=regularization_param,
-                                                debug=debug)
+                                                debug=debug, save_data=save_data)
 
     return mlp_model, accuracies, losses, times
 
