@@ -14,6 +14,7 @@ from project_libs.project.plotter import plot_bpnn_results
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression
 import warnings
+import pickle
 
 logger = ColorizedLogger('Models', 'green')
 
@@ -348,8 +349,9 @@ class MultiLayerPerceptron:
 
     def train(self, data: np.ndarray, one_hot_y: np.ndarray,
               batch_size: int = 1, lr: float = 0.01, momentum: float = 0.0,
-              max_epochs: int = 1000, early_stopping: Dict = None, shuffle: bool = False,
-              regularization_param: float = 0.0, debug: Dict = None) -> Tuple[List, List, List]:
+              max_epochs: int = 1000, early_stopping: Dict = None,
+              shuffle: bool = False, regularization_param: float = 0.0,
+              debug: Dict = None, save_data: bool = False) -> Tuple[List, List, List]:
         # Set Default values
         if not debug:
             debug = {'epochs': 10 ** 10, 'batches': 10 ** 10,
@@ -399,6 +401,8 @@ class MultiLayerPerceptron:
                 epoch_losses = self.total_loss(data_x, one_hot_y, regularization_param, debug)
                 accuracies.append(accuracy / data_x.shape[0])
                 losses.append(epoch_losses)
+                if save_data:
+                    self.save_model(epoch, accuracies, losses, times)
                 # Calculate Epoch Accuracy and Losses
                 if show_epoch:
                     self.print_stats(epoch_losses, accuracy, data_x.shape[0], '  ')
@@ -546,6 +550,16 @@ class MultiLayerPerceptron:
                             f"({lr}/{batch_size}) * dw({dw[l_ind].shape}")
                 logger.info(f"        b({self.weights[l_ind].shape}) -= "
                             f"({lr}/{batch_size}) * db({db[l_ind].shape}")
+
+    def save_model(self, epoch, accuracies, losses, times):
+        with open(f'data/bpnn/model_train_{epoch}.pickle', 'wb') as handle:
+            pickle.dump(self, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f'data/bpnn/accuracies_train_{epoch}.pickle', 'wb') as handle:
+            pickle.dump(accuracies, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f'data/bpnn/losses_train_{epoch}.pickle', 'wb') as handle:
+            pickle.dump(losses, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f'data/bpnn/times_train_{epoch}.pickle', 'wb') as handle:
+            pickle.dump(times, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     @staticmethod
     def linear(z):
