@@ -10,6 +10,7 @@ from project_libs import ColorizedLogger
 from sklearn.metrics import f1_score
 from sklearn.metrics import accuracy_score, confusion_matrix
 from project_libs import timeit
+from project_libs.project.plotter import plot_bpnn_results
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression
 import warnings
@@ -111,12 +112,13 @@ class BayesianCase:
             first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
                                          np.linalg.inv(current_cov))
         except np.linalg.LinAlgError as e:
+            logger.debug(f"{e}")
             current_cov += + 10e-5
             if str(e).strip() == 'Singular matrix':
                 first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
                                              np.linalg.pinv(current_cov))
             else:
-                logger.debug(f"{e}")
+                current_cov += + 10e-5
                 first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
                                              np.linalg.inv(current_cov))
 
@@ -150,7 +152,13 @@ class BayesianCase:
             second_term = -(1 / 2) * np.log(np.linalg.det(current_covs))
         except Exception as e:
             logger.debug(f"{e}")
-            second_term = -(1 / 2) * np.log(current_covs)
+            try:
+                second_term = -(1 / 2) * np.log(current_covs)
+            except Exception as e:
+                logger.debug(f"{e}")
+                current_covs += + 10e-5
+                second_term = -(1 / 2) * np.log(current_covs)
+
         third_term = np.log(priors[n_class])
         g = first_term + second_term + third_term
         return g
@@ -693,6 +701,23 @@ def train_dataset(name, dataset, targets, hidden_layers, activations, loss_funct
                                                 debug=debug)
 
     return mlp_model, accuracies, losses, times
+
+
+def test_and_plot(title, test_set=None, one_hot_targets=None, model=None, accuracies=None, losses=None,
+                  times=None, subsample=1):
+    # Test the full dataset
+    if isinstance(test_set, float):
+        test_accuracy = test_set
+    elif test_set is None:
+        test_accuracy = None
+    else:
+        test_accuracy = model.test(test_set.copy(), one_hot_targets.copy())
+    # Plot
+    plot_bpnn_results(title=title,
+                      test_accuracy=test_accuracy,
+                      accuracies=accuracies,
+                      losses=losses,
+                      times=times, subsample=subsample)
 
 
 # Implementation of kmeans clustering algorithm
