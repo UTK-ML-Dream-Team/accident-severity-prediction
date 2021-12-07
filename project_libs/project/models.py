@@ -907,8 +907,7 @@ def evaluate_cm(sklearn_cm, output):
     
     elif output == 'RETURN':
         return (accuracy, precision, sensitivity, specificity, f1_score)
-    
-    print(
+
 
 # Cross-validation    
     
