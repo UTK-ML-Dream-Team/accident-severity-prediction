@@ -694,9 +694,9 @@ class MultiLayerPerceptron:
         return data_x_c1, data_x_c2
 
 
-def train_dataset(name, dataset, targets, hidden_layers, activations, loss_functions, lr, momentum,
-                  batch_size, early_stopping, max_epochs, regularization_param, shuffle,
-                  symmetric_weights, seed, debug, save_data=False):
+def train_bpnn(name, dataset, targets, hidden_layers, activations, loss_functions, lr, momentum,
+               batch_size, early_stopping, max_epochs, regularization_param, shuffle,
+               symmetric_weights, seed, debug, save_data=False):
     logger.nl()
     logger.info(f"Training {name} dataset..")
     # Number of units per layer
@@ -717,8 +717,9 @@ def train_dataset(name, dataset, targets, hidden_layers, activations, loss_funct
     return mlp_model, accuracies, losses, times
 
 
-def test_and_plot(title, test_set=None, one_hot_targets=None, model=None, accuracies=None, losses=None,
-                  times=None, subsample=1):
+def test_and_plot_bpnn(title, test_set=None, one_hot_targets=None, model=None, accuracies=None,
+                       losses=None,
+                       times=None, subsample=1):
     # Test the full dataset
     if isinstance(test_set, float):
         test_accuracy = test_set
