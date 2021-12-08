@@ -751,10 +751,12 @@ def test_and_plot_bpnn(title, test_set=None, one_hot_targets=None, model=None, a
         model.predict = types.MethodType(MultiLayerPerceptron.predict, model)
         test_accuracy, predictions_onehot = model.test(test_set.copy(), one_hot_targets.copy())
         if save_predictions:
-            path = f'data/bpnn/predicted_onehot_y.pickle'
+            path = f'data/bpnn'
+            path_pred = f'{path}/predicted_y.pickle'
+            path_pred_onehot = f'{path}/predicted_onehot_y.pickle'
             predictions = one_hot_unencode(predictions_onehot)
-            MultiLayerPerceptron.save_pickle(var=predictions, path=path)
-            return MultiLayerPerceptron.load_pickle(path=path)
+            MultiLayerPerceptron.save_pickle(var=predictions, path=path_pred)
+            MultiLayerPerceptron.save_pickle(var=predictions_onehot, path=path_pred_onehot)
     # Plot
     plot_bpnn_results(title=title,
                       test_accuracy=test_accuracy,
