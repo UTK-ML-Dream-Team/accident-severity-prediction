@@ -3,6 +3,7 @@
 from .preprocessing import *
 from .models import *
 from .plotter import *
+from .postprocessing import *
 
 __author__ = "drkostas, jheiba, Russtyhub, schoward2, isanjeevsingh"
 __email__ = "kgeorgio.vols.utk.edu, jlord1@vols.utk.edu, rlimber@vols.utk.edu, " \

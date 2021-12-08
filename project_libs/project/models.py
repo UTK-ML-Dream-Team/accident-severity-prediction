@@ -14,13 +14,17 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.metrics import classification_report
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
 from project_libs import timeit
+from project_libs.project.plotter import plot_bpnn_results
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression
 import warnings
+import pickle
+from project_libs.project import one_hot_unencode
 
 logger = ColorizedLogger('Models', 'green')
 
 np.seterr(divide='raise')
+
 
 # Implementation ofCase 1, 2, and 3 Bayesian
 class BayesianCase:
@@ -116,8 +120,13 @@ class BayesianCase:
         except np.linalg.LinAlgError as e:
             logger.debug(f"{e}")
             current_cov += + 10e-5
-            first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
-                                         np.linalg.inv(current_cov))
+            if str(e).strip() == 'Singular matrix':
+                first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
+                                             np.linalg.pinv(current_cov))
+            else:
+                current_cov += + 10e-5
+                first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
+                                             np.linalg.inv(current_cov))
 
         first_term = -(1 / 2) * np.matmul(first_term_dot_1,
                                           (self.x_test[sample] - self.means[n_class]))
@@ -132,9 +141,13 @@ class BayesianCase:
                                          np.linalg.inv(current_covs))
         except np.linalg.LinAlgError as e:
             logger.debug(f"{e}")
-            current_covs += + 10e-5
-            first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
-                                         np.linalg.inv(current_covs))
+            if str(e).strip() == 'Singular matrix':
+                first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
+                                             np.linalg.pinv(current_covs))
+            else:
+                current_covs += + 10e-5
+                first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
+                                             np.linalg.inv(current_covs))
         except Exception as e:
             logger.debug(f"{e}")
             first_term_dot_1 = (self.x_test[sample] - self.means[n_class]).T / current_covs
@@ -145,7 +158,13 @@ class BayesianCase:
             second_term = -(1 / 2) * np.log(np.linalg.det(current_covs))
         except Exception as e:
             logger.debug(f"{e}")
-            second_term = -(1 / 2) * np.log(current_covs)
+            try:
+                second_term = -(1 / 2) * np.log(current_covs)
+            except Exception as e:
+                logger.debug(f"{e}")
+                current_covs += + 10e-5
+                second_term = -(1 / 2) * np.log(current_covs)
+
         third_term = np.log(priors[n_class])
         g = first_term + second_term + third_term
         return g
@@ -237,57 +256,59 @@ class BayesianCase:
         logger.info(f"|{'Positive':^15}|{self.tp[mtype]:^15}|{self.fn[mtype]:^15}|", color='red')
         logger.info(f"|{'Negative':^15}|{self.fp[mtype]:^15}|{self.tn[mtype]:^15}|", color='red')
 
-# Logistic Regression Algorithm        
+
+# Logistic Regression Algorithm
 class Log_Reg:
 
     def __init__(self, learning_rate, iters):
         self.learning_rate = learning_rate
         self.iters = iters
         self.weights, self.bias = None, None
-        
+
     def predict(self, X, threshold):
         linear_pred = (np.dot(X, self.weights) + self.bias)
-        probabilities = 1 / (1 + np.exp(-1*linear_pred))
+        probabilities = 1 / (1 + np.exp(-1 * linear_pred))
         return [1 if i > threshold else 0 for i in probabilities]
-           
+
     def fit(self, X, y):
         self.weights = np.zeros(X.shape[1])
         self.bias = 0
 
         for i in range(self.iters):
             linear_pred = np.dot(X, self.weights) + self.bias
-            probability = 1 / (1 + np.exp(-1*linear_pred))
-            
+            probability = 1 / (1 + np.exp(-1 * linear_pred))
+
             partial_w = (1 / X.shape[0]) * (2 * np.dot(X.T, (probability - y)))
             partial_d = (1 / X.shape[0]) * (2 * np.sum(probability - y))
-            
+
             self.weights -= self.learning_rate * partial_w
             self.bias -= self.learning_rate * partial_d
 
     def F1_score_func(self, actual, pred):
         self.cm = confusion_matrix(actual, pred)
-        accuracy = (self.cm[0,0]+self.cm[1,1])/self.cm.sum()
-        precision = self.cm[1,1]/(self.cm[1,1]+self.cm[0,1])
-        sensitivity = self.cm[1,1]/(self.cm[1,1]+self.cm[1,0])
-        F1_Score = (2*precision*sensitivity)/(precision+sensitivity)
+        accuracy = (self.cm[0, 0] + self.cm[1, 1]) / self.cm.sum()
+        precision = self.cm[1, 1] / (self.cm[1, 1] + self.cm[0, 1])
+        sensitivity = self.cm[1, 1] / (self.cm[1, 1] + self.cm[1, 0])
+        F1_Score = (2 * precision * sensitivity) / (precision + sensitivity)
         self.F1_Score = F1_Score
         self.accuracy = accuracy
 
     def evaluation(self, preds, actual):
-        #self.cm = confusion_matrix(actual, preds)
+        # self.cm = confusion_matrix(actual, preds)
         accuracy = accuracy_score(actual, preds)
 
-        pt = PrettyTable(['Logistic Regression', 'Accuracy', 'Sensitivity', 
-                      'Specificity', 'Precision', 'F1 Score']) 
-        pt.add_row(['Evaluation', accuracy, 
-                self.cm[1,1]/(self.cm[1,1]+self.cm[1,0]), 
-                self.cm[0,0]/(self.cm[0,1]+self.cm[0,0]), 
-                self.cm[1,1]/(self.cm[1,1]+self.cm[0,1]), 
-                self.F1_Score])
-        print(self.cm, '\n\n', pt)   
-        
+        pt = PrettyTable(['Logistic Regression', 'Accuracy', 'Sensitivity',
+                          'Specificity', 'Precision', 'F1 Score'])
+        pt.add_row(['Evaluation', accuracy,
+                    self.cm[1, 1] / (self.cm[1, 1] + self.cm[1, 0]),
+                    self.cm[0, 0] / (self.cm[0, 1] + self.cm[0, 0]),
+                    self.cm[1, 1] / (self.cm[1, 1] + self.cm[0, 1]),
+                    self.F1_Score])
+        print(self.cm, '\n\n', pt)
 
-# Implementation of neural network
+    # Implementation of neural network
+
+
 class MultiLayerPerceptron:
     """ Multi Layer Perceptron Model. """
     n_layers: int
@@ -334,8 +355,10 @@ class MultiLayerPerceptron:
 
     def train(self, data: np.ndarray, one_hot_y: np.ndarray,
               batch_size: int = 1, lr: float = 0.01, momentum: float = 0.0,
-              max_epochs: int = 1000, early_stopping: Dict = None, shuffle: bool = False,
-              regularization_param: float = 0.0, debug: Dict = None) -> Tuple[List, List, List]:
+              max_epochs: int = 1000, early_stopping: Dict = None,
+              shuffle: bool = False, regularization_param: float = 0.0,
+              debug: Dict = None, save_data: bool = False,
+              min_epoch: int = 1) -> Tuple[List, List, List]:
         # Set Default values
         if not debug:
             debug = {'epochs': 10 ** 10, 'batches': 10 ** 10,
@@ -348,7 +371,7 @@ class MultiLayerPerceptron:
         # data_x, _ = self.x_y_split(data)
         data_x = data
         try:
-            for epoch in range(1, max_epochs + 1):
+            for epoch in range(min_epoch, max_epochs + 1):
                 if epoch % debug['epochs'] == 0:
                     logger.info(f"Epoch: {epoch}", color="red")
                     show_epoch = True
@@ -374,17 +397,19 @@ class MultiLayerPerceptron:
                                        regularization_param=regularization_param, debug=debug)
                         # Calculate Batch Accuracy and Losses
                         if show_epoch and batch_ind % debug['batches'] == 0:
-                            accuracy = self.accuracy(data_x, one_hot_y, debug)
+                            accuracy, _ = self.accuracy(data_x, one_hot_y, debug)
                             batch_losses = self.total_loss(data_x, one_hot_y, regularization_param,
                                                            debug)
                             self.print_stats(batch_losses, accuracy, data_x.shape[0], '    ')
                 epoch_time = epoch_timeit.total
                 # Gather Results
                 times.append(epoch_time)
-                accuracy = self.accuracy(data_x, one_hot_y, debug)
+                accuracy, _ = self.accuracy(data_x, one_hot_y, debug)
                 epoch_losses = self.total_loss(data_x, one_hot_y, regularization_param, debug)
                 accuracies.append(accuracy / data_x.shape[0])
                 losses.append(epoch_losses)
+                if save_data:
+                    self.save_model(epoch, accuracies, losses, times)
                 # Calculate Epoch Accuracy and Losses
                 if show_epoch:
                     self.print_stats(epoch_losses, accuracy, data_x.shape[0], '  ')
@@ -422,13 +447,16 @@ class MultiLayerPerceptron:
             self.print_stats(epoch_losses, accuracy, data_x.shape[0], '')
             return accuracies, losses, times
 
-    def test(self, data: np.ndarray, one_hot_y: np.ndarray, debug: Dict = None) -> float:
+    def test(self, data: np.ndarray, one_hot_y: np.ndarray, debug: Dict = None) \
+            -> Tuple[float, np.ndarray]:
         if not debug:
             debug = {'epochs': 10 ** 10, 'batches': 10 ** 10,
                      'ff': False, 'bp': False, 'w': False, 'metrics': False}
-        data_x, _ = self.x_y_split(data)
-        accuracy = self.accuracy(data_x, one_hot_y, debug) / data_x.shape[0]
-        return accuracy
+        # data_x, _ = self.x_y_split(data)
+        data_x = data
+        accuracy, predictions = self.accuracy(data_x, one_hot_y, debug)
+        accuracy /= data_x.shape[0]
+        return accuracy, predictions
 
     @staticmethod
     def print_stats(losses, accuracy, size, padding):
@@ -533,6 +561,31 @@ class MultiLayerPerceptron:
                 logger.info(f"        b({self.weights[l_ind].shape}) -= "
                             f"({lr}/{batch_size}) * db({db[l_ind].shape}")
 
+    def save_model(self, epoch, accuracies, losses, times):
+        self.save_pickle(var=self, path=f'data/bpnn/model_train_{epoch}.pickle')
+        self.save_pickle(var=accuracies, path=f'data/bpnn/accuracies_train_{epoch}.pickle')
+        self.save_pickle(var=losses, path=f'data/bpnn/losses_train_{epoch}.pickle')
+        self.save_pickle(var=times, path=f'data/bpnn/times_train_{epoch}.pickle')
+
+    @staticmethod
+    def save_pickle(var: Any, path: str):
+        with open(path, 'wb') as handle:
+            pickle.dump(var, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    @classmethod
+    def load_model_instance(cls, epoch: int):
+        model = cls.load_pickle(f'data/bpnn/model_train_{epoch}.pickle')
+        accuracies = cls.load_pickle(f'data/bpnn/accuracies_train_{epoch}.pickle')
+        losses = cls.load_pickle(f'data/bpnn/losses_train_{epoch}.pickle')
+        times = cls.load_pickle(f'data/bpnn/times_train_{epoch}.pickle')
+        return model, accuracies, losses, times
+
+    @staticmethod
+    def load_pickle(path: str) -> Any:
+        with open(path, 'rb') as handle:
+            var = pickle.load(handle)
+        return var
+
     @staticmethod
     def linear(z):
         return z
@@ -605,7 +658,7 @@ class MultiLayerPerceptron:
         return y_predicted, y_raw_predictions
 
     def accuracy(self, data_x: np.ndarray, data_y: np.ndarray,
-                 debug: Dict) -> int:
+                 debug: Dict) -> Tuple[int, np.ndarray]:
         if debug['metrics']:
             logger.nl()
             logger.info('Accuracy', color='cyan')
@@ -614,7 +667,7 @@ class MultiLayerPerceptron:
                               for (pred, true) in zip(predictions, data_y))
         if debug['metrics']:
             logger.info(f'result_accuracy: {result_accuracy}')
-        return result_accuracy
+        return result_accuracy, np.stack(predictions, axis=0)
 
     def total_loss(self, data_x: np.ndarray, data_y: np.ndarray, regularization_param: float,
                    debug: Dict) -> List[Tuple[str, float]]:
@@ -666,9 +719,9 @@ class MultiLayerPerceptron:
         return data_x_c1, data_x_c2
 
 
-def train_dataset(name, dataset, targets, hidden_layers, activations, loss_functions, lr, momentum,
-                  batch_size, early_stopping, max_epochs, regularization_param, shuffle,
-                  symmetric_weights, seed, debug):
+def train_bpnn(name, dataset, targets, hidden_layers, activations, loss_functions, lr, momentum,
+               batch_size, early_stopping, max_epochs, regularization_param, shuffle,
+               symmetric_weights, seed, debug, save_data=False):
     logger.nl()
     logger.info(f"Training {name} dataset..")
     # Number of units per layer
@@ -684,9 +737,38 @@ def train_dataset(name, dataset, targets, hidden_layers, activations, loss_funct
                                                 shuffle=shuffle, max_epochs=max_epochs,
                                                 early_stopping=early_stopping,
                                                 regularization_param=regularization_param,
-                                                debug=debug)
+                                                debug=debug, save_data=save_data)
 
     return mlp_model, accuracies, losses, times
+
+
+def test_and_plot_bpnn(title, test_set=None, one_hot_targets=None, model=None, accuracies=None,
+                       losses=None,
+                       times=None,
+                       subsample=1, min_acc: float = 0.0, save_predictions: bool = False):
+    import types
+    # Test the full dataset
+    if isinstance(test_set, float):
+        test_accuracy = test_set
+    elif test_set is None:
+        test_accuracy = None
+    else:
+        model.predict = types.MethodType(MultiLayerPerceptron.predict, model)
+        test_accuracy, predictions_onehot = model.test(test_set.copy(), one_hot_targets.copy())
+        if save_predictions:
+            path = f'data/bpnn'
+            path_pred = f'{path}/predicted_y.pickle'
+            path_pred_onehot = f'{path}/predicted_onehot_y.pickle'
+            predictions = one_hot_unencode(predictions_onehot)
+            MultiLayerPerceptron.save_pickle(var=predictions, path=path_pred)
+            MultiLayerPerceptron.save_pickle(var=predictions_onehot, path=path_pred_onehot)
+    # Plot
+    plot_bpnn_results(title=title,
+                      test_accuracy=test_accuracy,
+                      accuracies=accuracies,
+                      losses=losses,
+                      times=times,
+                      subsample=subsample, min_acc=min_acc)
 
 
 # Implementation of kmeans clustering algorithm
@@ -771,7 +853,7 @@ class kmeans:
         plt.grid(True)
         plt.show()
 
-        
+
 # functions used for classification with kNN
 
 
@@ -779,12 +861,12 @@ def accuracy_score_knn(y, y_model):
 
     assert len(y) == len(y_model)
 
-    classn = len(np.unique(y))    # number of different classes
-    correct_all = y == y_model    # all correctly classified samples
+    classn = len(np.unique(y))  # number of different classes
+    correct_all = y == y_model  # all correctly classified samples
 
     acc_overall = np.sum(correct_all) / len(y)
-    acc_i = []        # list stores classwise accuracy
-    
+    acc_i = []  # list stores classwise accuracy
+
     for i in np.unique(y):
         acc_i.append(np.sum(correct_all[y == i]) / len(y[y == i]))
 
@@ -792,243 +874,242 @@ def accuracy_score_knn(y, y_model):
 
 
 def euclidean(x1, x2):
-    edist = np.sqrt(np.sum((x1 - x2)**2))
+    edist = np.sqrt(np.sum((x1 - x2) ** 2))
     return edist
 
 
 def kNN_distances(train, ytrain, test):
-
     alldist = []
     # Calculate distance between test samples and all samples in training set
-    
-    for i in test: # Loop through all observations in test set
-         
-        point_dist = [] # Array to store distances from each observation in test set
-         
-        for j in range(len(train)): # Loop through each point in the training data
-            distances = euclidean(np.array(train[j,:]) , i) # Calculate Euclidean distances
-            point_dist.append(distances) # Add distance to array
-        point_dist = np.array(point_dist) 
+
+    for i in test:  # Loop through all observations in test set
+
+        point_dist = []  # Array to store distances from each observation in test set
+
+        for j in range(len(train)):  # Loop through each point in the training data
+            distances = euclidean(np.array(train[j, :]), i)  # Calculate Euclidean distances
+            point_dist.append(distances)  # Add distance to array
+        point_dist = np.array(point_dist)
         alldist.append(point_dist)
     alldist = np.array(alldist)
     return alldist
 
-def bestk(train, alldist, ytrain, ytest, k_opt): 
+def bestk(train, alldist, ytrain, ytest, k_opt):
     
     accuracy_classwise = []
     accuracy_overall = []
-    
+
     # Assessing accuracy for different values of k
-    
-    for k in k_opt: 
+
+    for k in k_opt:
         ypredict_knn = kNN(train, alldist, ytrain, ytest, k)
         acc_i, acc_overall = accuracy_score_knn(ytest, ypredict_knn)
         accuracy_overall.append(acc_overall)
         accuracy_classwise.append(acc_i)
-        
-    accuracy_overall = np.array(accuracy_overall) # List of overall accuracy values for each k
-    accuracy_classwise = np.array(accuracy_classwise) # List of classwise accuracy values for each k
-    
+
+    accuracy_overall = np.array(accuracy_overall)  # List of overall accuracy values for each k
+    accuracy_classwise = np.array(accuracy_classwise)  # List of classwise accuracy values for each k
+
     # optimal k for maximizing overall accuracy
-    best_k_overall = k_opt[accuracy_overall.argmax()] 
-    
+    best_k_overall = k_opt[accuracy_overall.argmax()]
+
     # best overall accuracy
-    best_acc_overall = accuracy_overall[accuracy_overall.argmax()] 
-    
+    best_acc_overall = accuracy_overall[accuracy_overall.argmax()]
+
     # class 0 accuracy for k with best overall accuracy
-    class0_acc_overall = accuracy_classwise[accuracy_overall.argmax()][0] 
-    
+    class0_acc_overall = accuracy_classwise[accuracy_overall.argmax()][0]
+
     # class 1 accuracy for k with best overall accuracy
-    class1_acc_overall = accuracy_classwise[accuracy_overall.argmax()][1] 
-    
+    class1_acc_overall = accuracy_classwise[accuracy_overall.argmax()][1]
+
     # optimal k for maximizing class 0 accuracy
-    best_k_class0 = k_opt[accuracy_classwise[:,0].argmax()] 
-    
+    best_k_class0 = k_opt[accuracy_classwise[:, 0].argmax()]
+
     # best class 0 accuracy
-    best_acc_class0 = accuracy_classwise[accuracy_classwise[:,0].argmax()][0] 
-    
+    best_acc_class0 = accuracy_classwise[accuracy_classwise[:, 0].argmax()][0]
+
     # overall accuracy for k with best class 0 accuracy
-    overall_acc_class0 = accuracy_overall[accuracy_classwise[:,0].argmax()]
-    
+    overall_acc_class0 = accuracy_overall[accuracy_classwise[:, 0].argmax()]
+
     # class 1 accuracy for k with best class 0 accuracy
-    class1_acc_class0 = accuracy_classwise[accuracy_classwise[:,0].argmax()][1] 
-    
+    class1_acc_class0 = accuracy_classwise[accuracy_classwise[:, 0].argmax()][1]
+
     # optimal k for maximizing class 1 accuracy
-    best_k_class1 = k_opt[accuracy_classwise[:,1].argmax()] 
-    
+    best_k_class1 = k_opt[accuracy_classwise[:, 1].argmax()]
+
     #  best class 1 accuracy
-    best_acc_class1 = accuracy_classwise[accuracy_classwise[:,1].argmax()][1] 
-    
+    best_acc_class1 = accuracy_classwise[accuracy_classwise[:, 1].argmax()][1]
+
     # overall accuracy for k with best class 1 accuracy
-    overall_acc_class1 = accuracy_overall[accuracy_classwise[:,1].argmax()]
-    
+    overall_acc_class1 = accuracy_overall[accuracy_classwise[:, 1].argmax()]
+
     # class 1 accuracy for k with best class 0 accuracy
-    class0_acc_class1 = accuracy_classwise[accuracy_classwise[:,1].argmax()][0]
-    
+    class0_acc_class1 = accuracy_classwise[accuracy_classwise[:, 1].argmax()][0]
+
     # Combine values for maximizing overall accuracy
     k_overall = [best_k_overall, best_acc_overall, class0_acc_overall, class1_acc_overall]
-    
+
     # Combine values for maximizing class 0 accuracy
     k_class0 = [best_k_class0, best_acc_class0, overall_acc_class0, class1_acc_class0]
-    
+
     # Combine values for maximizing class 0 accuracy
     k_class1 = [best_k_class1, best_acc_class1, overall_acc_class1, class0_acc_class1]
-    
-    return k_opt, accuracy_overall, accuracy_classwise, k_overall, k_class0, k_class1
 
+    return k_opt, accuracy_overall, accuracy_classwise, k_overall, k_class0, k_class1
 
 
 def kNN(train, alldist, ytrain, ytest, k):
     ypredict = []
-    
+
     for i in range(len(alldist)):
-        dist = np.argsort(alldist[i])[:k] # Sort the array of distances and retain k points
-        labels = ytrain[dist] # Getting y-values for k nearest neighbors in training set 
-    
-    # Sort and use majority voting for different values of k
-        lab = np.bincount(labels).argmax() # Most frequent value in array
+        dist = np.argsort(alldist[i])[:k]  # Sort the array of distances and retain k points
+        labels = ytrain[dist]  # Getting y-values for k nearest neighbors in training set
+
+        # Sort and use majority voting for different values of k
+        lab = np.bincount(labels).argmax()  # Most frequent value in array
         ypredict.append(lab)
- 
+
     return ypredict
 
 
 # For evaluation with an sklearn confusion matrix:
 def evaluate_cm(sklearn_cm, output):
-    accuracy = (sklearn_cm[0,0]+sklearn_cm[1,1])/sklearn_cm.sum()
-    precision = sklearn_cm[1,1]/(sklearn_cm[1,1]+sklearn_cm[0,1])
-    sensitivity = sklearn_cm[1,1]/(sklearn_cm[1,1]+sklearn_cm[1,0])
-    specificity = sklearn_cm[0,0]/(sklearn_cm[0,0]+sklearn_cm[0,1])
-    f1_score = (2*precision*sensitivity)/(precision+sensitivity)
-    
+    accuracy = (sklearn_cm[0, 0] + sklearn_cm[1, 1]) / sklearn_cm.sum()
+    precision = sklearn_cm[1, 1] / (sklearn_cm[1, 1] + sklearn_cm[0, 1])
+    sensitivity = sklearn_cm[1, 1] / (sklearn_cm[1, 1] + sklearn_cm[1, 0])
+    specificity = sklearn_cm[0, 0] / (sklearn_cm[0, 0] + sklearn_cm[0, 1])
+    f1_score = (2 * precision * sensitivity) / (precision + sensitivity)
+
     if output == 'PRINT':
         print('accuracy: ', accuracy, 'precision: ', precision,
               'sensitivity: ', sensitivity, 'specificity: ',
               specificity, 'f1_score: ', f1_score)
-    
+
     elif output == 'RETURN':
         return (accuracy, precision, sensitivity, specificity, f1_score)
 
 
-# Cross-validation    
-    
+# Cross-validation
+
 def crossval_split(data, kfold):
-    
-### --- CLASS 0 --- ###
-    
-# Get samples for class 0
-    data0 = data[data[:,-1] == 0]
-    n0 = data0.shape[0] # number of samples in class 0
+    ### --- CLASS 0 --- ###
 
+    # Get samples for class 0
+    data0 = data[data[:, -1] == 0]
+    n0 = data0.shape[0]  # number of samples in class 0
 
-    valid0 = {} # Values for each of k validation chunks in class 0 
-    valid0_ind = {} # Indices for each of k validation chunks in class 0
+    valid0 = {}  # Values for each of k validation chunks in class 0
+    valid0_ind = {}  # Indices for each of k validation chunks in class 0
 
     train0 = {}
     train0_ind = {}
 
     # First of k chunks of data
-    valid0_ind[0] = np.random.choice(n0, size=round(n0/kfold), replace = False)
-    valid0[0] = data0[valid0_ind[0], :] # Randomly select (1/k)*n rows from data in class 0
-    ind0 = np.arange(0, n0, 1) # Indices for all rows in class 0 data
+    valid0_ind[0] = np.random.choice(n0, size=round(n0 / kfold), replace=False)
+    valid0[0] = data0[valid0_ind[0], :]  # Randomly select (1/k)*n rows from data in class 0
+    ind0 = np.arange(0, n0, 1)  # Indices for all rows in class 0 data
 
-    train0_ind[0] = np.delete(ind0, valid0_ind[0]) # Indices of n - (n/k) rows for training set for class 0
-    train0[0] = data0[train0_ind[0], :] # Training set is all samples not in validation set for class 0
+    train0_ind[0] = np.delete(ind0,
+                              valid0_ind[0])  # Indices of n - (n/k) rows for training set for class 0
+    train0[0] = data0[train0_ind[0],
+                :]  # Training set is all samples not in validation set for class 0
 
-    for k in range(1,kfold):
+    for k in range(1, kfold):
 
         # If class 0 samples cannot be evenly divided by k and the final partition has fewer than n0/k samples
-        if len(train0_ind[k-1]) < round(n0/kfold): 
-            valid0_ind[k] = train0_ind[k-1] # Validation set is all remaining samples that haven't been selected 
+        if len(train0_ind[k - 1]) < round(n0 / kfold):
+            valid0_ind[k] = train0_ind[
+                k - 1]  # Validation set is all remaining samples that haven't been selected
 
-        else: # Select indices randomly from remaining indices in training section
-            valid0_ind[k] = np.random.choice(train0_ind[k-1], size=round(n0/kfold), replace = False)
+        else:  # Select indices randomly from remaining indices in training section
+            valid0_ind[k] = np.random.choice(train0_ind[k - 1], size=round(n0 / kfold), replace=False)
 
         # Select rows with those indices from original dataset
         valid0[k] = data0[valid0_ind[k], :]
         # Delete those indices from remaining indices that have not been selected for validation set
-        train0_ind[k] = np.delete(train0_ind[k-1], np.argwhere(valid0_ind[k]))
+        train0_ind[k] = np.delete(train0_ind[k - 1], np.argwhere(valid0_ind[k]))
         # Training data is all rows not selected for validation set
         train0[k] = data0[np.delete(ind0, valid0_ind[k]), :]
 
-### --- CLASS 1 --- ###
+    ### --- CLASS 1 --- ###
 
     # Get samples for class 1
-    data1 = data[data[:,-1] == 1]
-    n1 = data1.shape[0] # number of samples in class 1
+    data1 = data[data[:, -1] == 1]
+    n1 = data1.shape[0]  # number of samples in class 1
 
-    valid1 = {} # Values for each of k validation chunks in class 1 
-    valid1_ind = {} # Indices for each of k validation chunks in class 1
+    valid1 = {}  # Values for each of k validation chunks in class 1
+    valid1_ind = {}  # Indices for each of k validation chunks in class 1
 
     train1 = {}
     train1_ind = {}
 
     # First of k chunks of data
-    valid1_ind[0] = np.random.choice(n1, size=round(n1/kfold), replace = False)
-    valid1[0] = data1[valid1_ind[0], :] # Randomly select (1/k)*n rows from data in class 1
-    ind1 = np.arange(0, n1, 1) # Indices for all rows in class 0 data
+    valid1_ind[0] = np.random.choice(n1, size=round(n1 / kfold), replace=False)
+    valid1[0] = data1[valid1_ind[0], :]  # Randomly select (1/k)*n rows from data in class 1
+    ind1 = np.arange(0, n1, 1)  # Indices for all rows in class 0 data
 
-    train1_ind[0] = np.delete(ind1, valid1_ind[0]) # Indices of n - (n/k) rows for validation set for class 0
-    train1[0] = data1[train1_ind[0], :] # Validation set is all samples not in training set for class 0
+    train1_ind[0] = np.delete(ind1, valid1_ind[
+        0])  # Indices of n - (n/k) rows for validation set for class 0
+    train1[0] = data1[train1_ind[0],
+                :]  # Validation set is all samples not in training set for class 0
 
-    for k in range(1,kfold):
+    for k in range(1, kfold):
 
         # If class 1 samples cannot be evenly divided by k and the final partition has fewer than n0/k samples
-        if len(train1_ind[k-1]) < round(n1/kfold): 
-            valid1_ind[k] = train1_ind[k-1] # Validation set is all remaining samples that haven't been selected
+        if len(train1_ind[k - 1]) < round(n1 / kfold):
+            valid1_ind[k] = train1_ind[
+                k - 1]  # Validation set is all remaining samples that haven't been selected
 
-        else: # Select indices randomly from remaining data
-            valid1_ind[k] = np.random.choice(train1_ind[k-1], size=round(n1/kfold), replace = False)
+        else:  # Select indices randomly from remaining data
+            valid1_ind[k] = np.random.choice(train1_ind[k - 1], size=round(n1 / kfold), replace=False)
 
         # Select rows with those indices from remaining data
         valid1[k] = data1[valid1_ind[k], :]
         # Delete those indices from remaining data
-        train1_ind[k] = np.delete(train1_ind[k-1], np.argwhere(valid1_ind[k]))
+        train1_ind[k] = np.delete(train1_ind[k - 1], np.argwhere(valid1_ind[k]))
         # Training data is all rows not selected for validation set
         train1[k] = data1[np.delete(ind1, valid1_ind[k]), :]
-    
+
     # Combine training & validation sets for classes 0 and 1
-    
+
     training_data = {}
     validation_data = {}
     Xtrain = {}
     ytrain = {}
     Xvalid = {}
     yvalid = {}
-    
+
     for k in range(kfold):
-        training_data[k] = np.concatenate((train0[k], train1[k]), axis = 0)
+        training_data[k] = np.concatenate((train0[k], train1[k]), axis=0)
         Xtrain[k] = training_data[k][:, :-1]
         ytrain[k] = training_data[k][:, -1].astype(int)
-        
-        validation_data[k] = np.concatenate((valid0[k], valid1[k]), axis = 0)
-        Xvalid[k] = validation_data[k][:,:-1]
+
+        validation_data[k] = np.concatenate((valid0[k], valid1[k]), axis=0)
+        Xvalid[k] = validation_data[k][:, :-1]
         yvalid[k] = validation_data[k][:, -1].astype(int)
-    
+
     return Xtrain, ytrain, Xvalid, yvalid, training_data, validation_data
 
 
 def acc_crossval(yvalid, ypredict, kfold):
-    
     acc_overall = []
     acc_class0 = []
     acc_class1 = []
-    
-    for k in range(kfold):
 
+    for k in range(kfold):
         assert len(yvalid[k]) == len(ypredict[k])
 
-        correct_all = yvalid[k] == ypredict[k]    # all correctly classified samples
+        correct_all = yvalid[k] == ypredict[k]  # all correctly classified samples
 
         acc_overall.append(np.sum(correct_all) / len(yvalid[k]))
-        
+
         acc_class0.append(np.sum(correct_all[yvalid[k] == 0]) / len(yvalid[k][yvalid[k] == 0]))
         acc_class1.append(np.sum(correct_all[yvalid[k] == 1]) / len(yvalid[k][yvalid[k] == 1]))
 
-# Average accuracies
+    # Average accuracies
     avg_overall = np.mean(acc_overall)
     avg_class0 = np.mean(acc_class0)
     avg_class1 = np.mean(acc_class1)
-
 
     return avg_overall, avg_class0, avg_class1
 
@@ -1045,61 +1126,61 @@ def accuracy_score_wta(y, y_model):
 
     acc_overall = np.sum(correct_all) / len(y)
     acc_i = []        # this list7 stores classwise accuracy
-    
-    
+
+
     for i in np.unique(y):
         acc_i.append(np.sum(correct_all[y==i])/len(y[y==i]))
-        
-        
+
+
     return acc_i, acc_overall, y, y_model
 
 #Euclidian Distance for WTA
 def euclid (x1, x2):
         edist = np.sqrt(np.sum((x1 - x2)**2))
-        
+
         return edist
 
 #WTA Function
 def win(Xtest, ytest, k, kcenters, epsilon, max_iter):
-   
+
     cent_prev = [] #previous center
     group = []
     group_prev = []
     group_change = []
     change = []
     epoch = []
-   
+
     e = 0
-   
-    for it in range(max_iter):  
-       
+
+    for it in range(max_iter):
+
         change = []
         group = []
-       
+
         for i in Xtest: # go through all obs in data
             cent_dist = [] # store distances from each obs in test data
             kcenters = np.array(kcenters)
 
             for j in range(len(kcenters)): # go through each of kcenters
                 distances = euclid((kcenters[j, :]), i) # distance to each center (min euclidian)
-                cent_dist.append(distances) 
+                cent_dist.append(distances)
 
             label = cent_dist.index(min(cent_dist)) # decision of closest distance
             group.append(label)
-           
+
             # see lecture 6 slides - moves point closer to closest center
 
             closest = kcenters[label, :] # finds closest center & label is the index value
 
-           
+
             # w(new) = w(old) + epsilon*(x-w(old)) - equation from lecture slides
             #updating closest cluster
-            new_center = closest + epsilon*(i - closest) 
-            kcenters[label, :] = new_center 
-         
+            new_center = closest + epsilon*(i - closest)
+            kcenters[label, :] = new_center
 
-        group_prev.append(np.array(group)) 
- 
+
+        group_prev.append(np.array(group))
+
         e +=1
         epoch.append(e)
         if it == 0:
@@ -1107,7 +1188,7 @@ def win(Xtest, ytest, k, kcenters, epsilon, max_iter):
             group_change.append(change)
         if it > 0:
             change = (np.sum(np.array(group_prev)[it,:] != np.array(group_prev)[it-1,:]))
-            group_change.append(change / len(Xtest))    
+            group_change.append(change / len(Xtest))
         if it > 0 and change == 0.0:
             break
     class_win_acc, overall_win_acc, y, y_model = accuracy_score_wta(ytest, group)
@@ -1117,18 +1198,18 @@ def win(Xtest, ytest, k, kcenters, epsilon, max_iter):
 import random
 
 def cent(Xtest, k): #choses random centers to start function
-    
+
     #random.seed(100)
     nte, nf = Xtest.shape
-   
+
     ind = np.random.choice(nte, size=k, replace=False) # index of random rows
-    kcenters = Xtest.iloc[ind, :] 
+    kcenters = Xtest.iloc[ind, :]
     return kcenters, k
 
 
 def tune_SKLearn_LR(X_train, X_val, X_test, y_train, y_val, y_test, param):
 
-    
+
     grid = {'penalty': ['l1', 'l2', 'elasticnet', 'none'],
             'dual': [False],
             'fit_intercept': [True, False],
@@ -1137,74 +1218,74 @@ def tune_SKLearn_LR(X_train, X_val, X_test, y_train, y_val, y_test, param):
             'multi_class': ['auto', 'ovr', 'multinomial'],
             'warm_start': [True, False]}
 
-    
+
     LR = LogisticRegression(max_iter=300)
-    
+
     if param == 'full':
         print("=========================================")
         print(f"\033[1m Logistic Regression Tuning Results on Full Data\033[0m")
         print("=========================================")
-        
+
         xtrain, xval, xtest= X_train, X_val, X_test
-        
+
     elif param == 'pca':
-        
+
         print("=========================================")
         print(f"\033[1m Logistic Regression Tuning Results on PCA Data\033[0m")
         print("=========================================")
-        
+
         xtrain, xval, xtest = pd.DataFrame(X_train), pd.DataFrame(X_val), pd.DataFrame(X_test)
-        
+
     start_LR_tune = time()
 
     LR_random = RandomizedSearchCV(estimator = LR,
-                                    param_distributions = grid, 
-                                    n_iter = 100, cv = 5, 
+                                    param_distributions = grid,
+                                    n_iter = 100, cv = 5,
                                     verbose= 0, random_state=44, refit = callable,
                                     n_jobs = -1, scoring = ['f1_macro', 'accuracy'])
-        
+
     # I combined the test and validation data because the RandomizedSearchCV
-    # uses cross validation to determine optimal parameters. 
+    # uses cross validation to determine optimal parameters.
 
     LR_random.fit(pd.concat([xtrain, xval]), pd.concat([y_train, y_val]))
 
     stop_LR_tune = time()
-        
+
     time_to_complete = stop_LR_tune - start_LR_tune
     best_param_dict = LR_random.best_params_
-    
+
     best_model = LogisticRegression(max_iter=300, warm_start = best_param_dict['warm_start'],
                                     solver = best_param_dict['solver'], penalty = best_param_dict['penalty'],
-                                    multi_class = best_param_dict['multi_class'], 
-                                    fit_intercept = best_param_dict['fit_intercept'], 
-                                    dual = best_param_dict['dual'], 
+                                    multi_class = best_param_dict['multi_class'],
+                                    fit_intercept = best_param_dict['fit_intercept'],
+                                    dual = best_param_dict['dual'],
                                     C = best_param_dict['C']).fit(pd.concat([xtrain, xval]), pd.concat([y_train, y_val]))
-    
-   
+
+
     preds = best_model.predict(xtest)
 
     conf_mat_log_reg = confusion_matrix(y_test, preds)
     accuracy_log_reg = accuracy_score(y_test, preds)
 
-    pt = PrettyTable(['Time to Tune (s)', 'Accuracy', 'Sensitivity', 
-                          'Specificity', 'Precision', 'F1 Score (macro)']) 
+    pt = PrettyTable(['Time to Tune (s)', 'Accuracy', 'Sensitivity',
+                          'Specificity', 'Precision', 'F1 Score (macro)'])
 
-    pt.add_row([round(time_to_complete, 2), round(accuracy_log_reg, 2), 
+    pt.add_row([round(time_to_complete, 2), round(accuracy_log_reg, 2),
                 round(conf_mat_log_reg[1,1]/(conf_mat_log_reg[1,1]+conf_mat_log_reg[1,0]), 2),
                 round(conf_mat_log_reg[0,0]/(conf_mat_log_reg[0,1]+conf_mat_log_reg[0,0]), 2),
                 round(conf_mat_log_reg[1,1]/(conf_mat_log_reg[1,1]+conf_mat_log_reg[0,1]), 2),
                 round(f1_score(y_test, preds, average = 'macro'), 2)])
-    
+
     print('SKL Confusion Matrix: ', conf_mat_log_reg)
     print('LOGISTIC REGRESSION BEST MODEL BASED ON VALIDATION:')
     display(pt)
     print('The best parameters are: ', best_param_dict)
-    
+
     return (best_model, preds)
 
 def tune_scratch_log_reg(xtrain, ytrain, xval, yval, passes):
     warnings.filterwarnings('ignore')
-    
+
     # The warning are because exp() is blowing up but since
     # we're dividing by exp() it becomes ~0 which is what we want
 
@@ -1232,5 +1313,5 @@ def tune_scratch_log_reg(xtrain, ytrain, xval, yval, passes):
           results[opt_n], 'Tuning Logistic Regression Scratch took: ', time_LR_scratch_tune, 's')
 
     opt_params = params[opt_n]
-    
+
     return opt_params

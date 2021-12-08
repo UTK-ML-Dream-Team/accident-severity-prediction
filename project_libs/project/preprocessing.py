@@ -20,6 +20,10 @@ def one_hot_encode(data):
     return y_one_hot
 
 
+def one_hot_unencode(onehot_data):
+    return np.argmax(onehot_data, axis=1)[:, np.newaxis]
+
+
 def isolate_city_state(data, cities, states):
     """ This ensures that each city is selected with it's respective state
     which is why I didn't simply run a merge statement. """
@@ -57,14 +61,16 @@ def basic_impute(input_data):
 
     return data
 
+
 def knn_imputer(df, k):
     temp_data = df.select_dtypes(include=np.number)
     imputer = KNNImputer(n_neighbors=k)
     vals_arr = imputer.fit_transform(temp_data)
     cols = df.select_dtypes(include=np.number).columns
     df[cols] = vals_arr
-    
+
     return df
+
 
 def encode_std_extract_split(X):
     # Dropping the following features
@@ -153,8 +159,9 @@ def encode_std_extract_split(X):
                                                         test_size=0.10, shuffle=True, stratify=y,
                                                         random_state=42)
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train,
-                                                        test_size=0.10/0.90, shuffle=True, stratify=y_train,
-                                                        random_state=42)
+                                                      test_size=0.10 / 0.90, shuffle=True,
+                                                      stratify=y_train,
+                                                      random_state=42)
 
     # Standardize Numerical Variables
     numerical_features = [
@@ -167,8 +174,8 @@ def encode_std_extract_split(X):
         mu = X_train[feature].mean()
         sigma = X_train[feature].std()
         X_train[feature] = X_train[feature].apply(lambda x: (x - mu) / sigma)
-        X_val[feature]   = X_val[feature].apply(lambda x: (x - mu) / sigma)        
-        X_test[feature]  = X_test[feature].apply(lambda x: (x - mu) / sigma)
+        X_val[feature] = X_val[feature].apply(lambda x: (x - mu) / sigma)
+        X_test[feature] = X_test[feature].apply(lambda x: (x - mu) / sigma)
 
     return (X_train, X_val, X_test, y_train, y_val, y_test)
 
@@ -181,10 +188,10 @@ def filter_loc_basic_var(accident_df):
     """
 
     basic_location = [
-                        'ID', 'Severity', 'Start_Time', 'End_Time', 'Distance(mi)', 'Description',
-                        'Start_Lat', 'Start_Lng', 'End_Lat', 'End_Lng', 'Number', 'Street', 'Side', 
-                        'City', 'County','State', 'Zipcode', 'Country', 'Timezone', 'Airport_Code'
-                    ]
+        'ID', 'Severity', 'Start_Time', 'End_Time', 'Distance(mi)', 'Description',
+        'Start_Lat', 'Start_Lng', 'End_Lat', 'End_Lng', 'Number', 'Street', 'Side',
+        'City', 'County', 'State', 'Zipcode', 'Country', 'Timezone', 'Airport_Code'
+    ]
     return accident_df[basic_location]
 
 
