@@ -135,7 +135,7 @@ class BayesianCase:
         return g
 
     def _build_g_quadratic(self, sample, n_class, priors: List[float]):
-        current_covs = self.covs[n_class]
+        current_covs = np.clip(self.covs[n_class], 10e-5, None)
         try:
             first_term_dot_1 = np.matmul((self.x_test[sample] - self.means[n_class]).T,
                                          np.linalg.inv(current_covs))
@@ -155,16 +155,10 @@ class BayesianCase:
         first_term = -(1 / 2) * np.matmul(first_term_dot_1,
                                           (self.x_test[sample] - self.means[n_class]))
         try:
-            second_term = -(1 / 2) * np.log(np.linalg.det(current_covs))
+            second_term = -(1 / 2) * np.log(np.clip(np.linalg.det(current_covs), 10e-5, None))
         except Exception as e:
             logger.debug(f"{e}")
-            try:
-                second_term = -(1 / 2) * np.log(current_covs)
-            except Exception as e:
-                logger.debug(f"{e}")
-                current_covs += + 10e-5
-                second_term = -(1 / 2) * np.log(current_covs)
-
+            second_term = -(1 / 2) * np.log(np.clip(current_covs, 10e-5, None))
         third_term = np.log(priors[n_class])
         g = first_term + second_term + third_term
         return g
