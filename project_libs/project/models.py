@@ -1,14 +1,18 @@
 import numpy as np
+import pandas as pd
+import copy
 from time import time
 from typing import *
 from sklearn.svm import SVC
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from scipy.spatial import distance
+from scipy.stats import chisquare
 from prettytable import PrettyTable
 from project_libs import ColorizedLogger
-from sklearn.metrics import f1_score
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
 from project_libs import timeit
 from project_libs.project.plotter import plot_bpnn_results
 from sklearn.model_selection import RandomizedSearchCV
@@ -287,6 +291,7 @@ class Log_Reg:
         sensitivity = self.cm[1, 1] / (self.cm[1, 1] + self.cm[1, 0])
         F1_Score = (2 * precision * sensitivity) / (precision + sensitivity)
         self.F1_Score = F1_Score
+        self.accuracy = accuracy
 
     def evaluation(self, preds, actual):
         # self.cm = confusion_matrix(actual, preds)
@@ -820,7 +825,7 @@ class kmeans:
         class_1_accuracy = 100.0 * sum(y_pred[y_true == 1] == y_true[y_true == 1]) / sum(y_true == 1)
 
         # print("Kmeans Classification Report:")
-        print(f"Overall Accuracy: {round(100.0 * accuracy_score(y_pred, y_true), 2)} %")
+        print(f"Overall Accuracy: {round(100.0 * accuracy_score(y_true, y_pred), 2)} %")
         print(f"F1-Score: {round(f1_score(y_true, y_pred), 3)}")
         print(f"Class 0 accuracy: {round(class_0_accuracy, 2)} %")
         print(f"Class 1 accuracy: {round(class_1_accuracy, 2)} %")
@@ -835,7 +840,7 @@ class kmeans:
 
     def predict(self, data, y_true):
         y_pred = np.argmin(distance.cdist(data, self.centroids, 'euclidean'), axis=1)
-        if accuracy_score(y_pred, y_true) < 0.5:
+        if accuracy_score(y_true, y_pred) < 0.5:
             y_pred = 1 - y_pred
         return y_pred
 
@@ -851,7 +856,9 @@ class kmeans:
 
 # functions used for classification with kNN
 
-def accuracy_score(y, y_model):
+
+def accuracy_score_knn(y, y_model):
+
     assert len(y) == len(y_model)
 
     classn = len(np.unique(y))  # number of different classes
@@ -887,9 +894,8 @@ def kNN_distances(train, ytrain, test):
     alldist = np.array(alldist)
     return alldist
 
-
-def bestk(train, alldist, ytrain, ytest, k_opt):  # Working on this function...
-
+def bestk(train, alldist, ytrain, ytest, k_opt):
+    
     accuracy_classwise = []
     accuracy_overall = []
 
@@ -897,7 +903,7 @@ def bestk(train, alldist, ytrain, ytest, k_opt):  # Working on this function...
 
     for k in k_opt:
         ypredict_knn = kNN(train, alldist, ytrain, ytest, k)
-        acc_i, acc_overall = accuracy_score(ytest, ypredict_knn)
+        acc_i, acc_overall = accuracy_score_knn(ytest, ypredict_knn)
         accuracy_overall.append(acc_overall)
         accuracy_classwise.append(acc_i)
 
@@ -1106,3 +1112,206 @@ def acc_crossval(yvalid, ypredict, kfold):
     avg_class1 = np.mean(acc_class1)
 
     return avg_overall, avg_class0, avg_class1
+
+
+#Winner-Take-All Code
+
+#Accuracy for WTA
+def accuracy_score_wta(y, y_model):
+
+    assert len(y) == len(y_model)
+
+    classn = len(np.unique(y))    # number of different classes
+    correct_all = y == y_model    # all correctly classified samples
+
+    acc_overall = np.sum(correct_all) / len(y)
+    acc_i = []        # this list7 stores classwise accuracy
+
+
+    for i in np.unique(y):
+        acc_i.append(np.sum(correct_all[y==i])/len(y[y==i]))
+
+
+    return acc_i, acc_overall, y, y_model
+
+#Euclidian Distance for WTA
+def euclid (x1, x2):
+        edist = np.sqrt(np.sum((x1 - x2)**2))
+
+        return edist
+
+#WTA Function
+def win(Xtest, ytest, k, kcenters, epsilon, max_iter):
+
+    cent_prev = [] #previous center
+    group = []
+    group_prev = []
+    group_change = []
+    change = []
+    epoch = []
+
+    e = 0
+
+    for it in range(max_iter):
+
+        change = []
+        group = []
+
+        for i in Xtest: # go through all obs in data
+            cent_dist = [] # store distances from each obs in test data
+            kcenters = np.array(kcenters)
+
+            for j in range(len(kcenters)): # go through each of kcenters
+                distances = euclid((kcenters[j, :]), i) # distance to each center (min euclidian)
+                cent_dist.append(distances)
+
+            label = cent_dist.index(min(cent_dist)) # decision of closest distance
+            group.append(label)
+
+            # see lecture 6 slides - moves point closer to closest center
+
+            closest = kcenters[label, :] # finds closest center & label is the index value
+
+
+            # w(new) = w(old) + epsilon*(x-w(old)) - equation from lecture slides
+            #updating closest cluster
+            new_center = closest + epsilon*(i - closest)
+            kcenters[label, :] = new_center
+
+
+        group_prev.append(np.array(group))
+
+        e +=1
+        epoch.append(e)
+        if it == 0:
+            change = 1
+            group_change.append(change)
+        if it > 0:
+            change = (np.sum(np.array(group_prev)[it,:] != np.array(group_prev)[it-1,:]))
+            group_change.append(change / len(Xtest))
+        if it > 0 and change == 0.0:
+            break
+    class_win_acc, overall_win_acc, y, y_model = accuracy_score_wta(ytest, group)
+    return epoch, group_change, class_win_acc, overall_win_acc, y, y_model
+
+#choosing initial centers for WTA
+import random
+
+def cent(Xtest, k): #choses random centers to start function
+
+    #random.seed(100)
+    nte, nf = Xtest.shape
+
+    ind = np.random.choice(nte, size=k, replace=False) # index of random rows
+    kcenters = Xtest.iloc[ind, :]
+    return kcenters, k
+
+
+def tune_SKLearn_LR(X_train, X_val, X_test, y_train, y_val, y_test, param):
+
+
+    grid = {'penalty': ['l1', 'l2', 'elasticnet', 'none'],
+            'dual': [False],
+            'fit_intercept': [True, False],
+            'solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'],
+            'C': np.linspace(0.01, 2, 20),
+            'multi_class': ['auto', 'ovr', 'multinomial'],
+            'warm_start': [True, False]}
+
+
+    LR = LogisticRegression(max_iter=300)
+
+    if param == 'full':
+        print("=========================================")
+        print(f"\033[1m Logistic Regression Tuning Results on Full Data\033[0m")
+        print("=========================================")
+
+        xtrain, xval, xtest= X_train, X_val, X_test
+
+    elif param == 'pca':
+
+        print("=========================================")
+        print(f"\033[1m Logistic Regression Tuning Results on PCA Data\033[0m")
+        print("=========================================")
+
+        xtrain, xval, xtest = pd.DataFrame(X_train), pd.DataFrame(X_val), pd.DataFrame(X_test)
+
+    start_LR_tune = time()
+
+    LR_random = RandomizedSearchCV(estimator = LR,
+                                    param_distributions = grid,
+                                    n_iter = 100, cv = 5,
+                                    verbose= 0, random_state=44, refit = callable,
+                                    n_jobs = -1, scoring = ['f1_macro', 'accuracy'])
+
+    # I combined the test and validation data because the RandomizedSearchCV
+    # uses cross validation to determine optimal parameters.
+
+    LR_random.fit(pd.concat([xtrain, xval]), pd.concat([y_train, y_val]))
+
+    stop_LR_tune = time()
+
+    time_to_complete = stop_LR_tune - start_LR_tune
+    best_param_dict = LR_random.best_params_
+
+    best_model = LogisticRegression(max_iter=300, warm_start = best_param_dict['warm_start'],
+                                    solver = best_param_dict['solver'], penalty = best_param_dict['penalty'],
+                                    multi_class = best_param_dict['multi_class'],
+                                    fit_intercept = best_param_dict['fit_intercept'],
+                                    dual = best_param_dict['dual'],
+                                    C = best_param_dict['C']).fit(pd.concat([xtrain, xval]), pd.concat([y_train, y_val]))
+
+
+    preds = best_model.predict(xtest)
+
+    conf_mat_log_reg = confusion_matrix(y_test, preds)
+    accuracy_log_reg = accuracy_score(y_test, preds)
+
+    pt = PrettyTable(['Time to Tune (s)', 'Accuracy', 'Sensitivity',
+                          'Specificity', 'Precision', 'F1 Score (macro)'])
+
+    pt.add_row([round(time_to_complete, 2), round(accuracy_log_reg, 2),
+                round(conf_mat_log_reg[1,1]/(conf_mat_log_reg[1,1]+conf_mat_log_reg[1,0]), 2),
+                round(conf_mat_log_reg[0,0]/(conf_mat_log_reg[0,1]+conf_mat_log_reg[0,0]), 2),
+                round(conf_mat_log_reg[1,1]/(conf_mat_log_reg[1,1]+conf_mat_log_reg[0,1]), 2),
+                round(f1_score(y_test, preds, average = 'macro'), 2)])
+
+    print('SKL Confusion Matrix: ', conf_mat_log_reg)
+    print('LOGISTIC REGRESSION BEST MODEL BASED ON VALIDATION:')
+    display(pt)
+    print('The best parameters are: ', best_param_dict)
+
+    return (best_model, preds)
+
+def tune_scratch_log_reg(xtrain, ytrain, xval, yval, passes):
+    warnings.filterwarnings('ignore')
+
+    # The warning are because exp() is blowing up but since
+    # we're dividing by exp() it becomes ~0 which is what we want
+
+    thresh = np.linspace(0.05, 0.95, passes)
+    Lrate = np.linspace(0.05, 0.5, passes)
+    results, params = [], []
+
+    start_LR_scratch_tune = time()
+
+    for th in thresh:
+        for lr in Lrate:
+            LR_model = Log_Reg(learning_rate=lr, iters=500)
+            LR_model.fit(xtrain, ytrain)
+            preds = LR_model.predict(xval, threshold=th)
+            LR_model.F1_score_func(yval, preds)
+            results.append(LR_model.accuracy)
+            params.append([th, lr])
+
+    stop_LR_scratch_tune = time()
+    time_LR_scratch_tune = stop_LR_scratch_tune - start_LR_scratch_tune
+
+    opt_n = results.index(max(results))
+    print('The optimal threshold and learning rate: ', params[opt_n],
+          '\n', 'The highest Accuracy: ',
+          results[opt_n], 'Tuning Logistic Regression Scratch took: ', time_LR_scratch_tune, 's')
+
+    opt_params = params[opt_n]
+
+    return opt_params
