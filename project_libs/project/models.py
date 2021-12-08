@@ -15,6 +15,7 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression
 import warnings
 import pickle
+from project_libs.project import one_hot_unencode
 
 logger = ColorizedLogger('Models', 'green')
 
@@ -351,7 +352,8 @@ class MultiLayerPerceptron:
               batch_size: int = 1, lr: float = 0.01, momentum: float = 0.0,
               max_epochs: int = 1000, early_stopping: Dict = None,
               shuffle: bool = False, regularization_param: float = 0.0,
-              debug: Dict = None, save_data: bool = False) -> Tuple[List, List, List]:
+              debug: Dict = None, save_data: bool = False,
+              min_epoch: int = 1) -> Tuple[List, List, List]:
         # Set Default values
         if not debug:
             debug = {'epochs': 10 ** 10, 'batches': 10 ** 10,
@@ -364,7 +366,7 @@ class MultiLayerPerceptron:
         # data_x, _ = self.x_y_split(data)
         data_x = data
         try:
-            for epoch in range(1, max_epochs + 1):
+            for epoch in range(min_epoch, max_epochs + 1):
                 if epoch % debug['epochs'] == 0:
                     logger.info(f"Epoch: {epoch}", color="red")
                     show_epoch = True
@@ -390,14 +392,14 @@ class MultiLayerPerceptron:
                                        regularization_param=regularization_param, debug=debug)
                         # Calculate Batch Accuracy and Losses
                         if show_epoch and batch_ind % debug['batches'] == 0:
-                            accuracy = self.accuracy(data_x, one_hot_y, debug)
+                            accuracy, _ = self.accuracy(data_x, one_hot_y, debug)
                             batch_losses = self.total_loss(data_x, one_hot_y, regularization_param,
                                                            debug)
                             self.print_stats(batch_losses, accuracy, data_x.shape[0], '    ')
                 epoch_time = epoch_timeit.total
                 # Gather Results
                 times.append(epoch_time)
-                accuracy = self.accuracy(data_x, one_hot_y, debug)
+                accuracy, _ = self.accuracy(data_x, one_hot_y, debug)
                 epoch_losses = self.total_loss(data_x, one_hot_y, regularization_param, debug)
                 accuracies.append(accuracy / data_x.shape[0])
                 losses.append(epoch_losses)
@@ -440,14 +442,16 @@ class MultiLayerPerceptron:
             self.print_stats(epoch_losses, accuracy, data_x.shape[0], '')
             return accuracies, losses, times
 
-    def test(self, data: np.ndarray, one_hot_y: np.ndarray, debug: Dict = None) -> float:
+    def test(self, data: np.ndarray, one_hot_y: np.ndarray, debug: Dict = None) \
+            -> Tuple[float, np.ndarray]:
         if not debug:
             debug = {'epochs': 10 ** 10, 'batches': 10 ** 10,
                      'ff': False, 'bp': False, 'w': False, 'metrics': False}
         # data_x, _ = self.x_y_split(data)
         data_x = data
-        accuracy = self.accuracy(data_x, one_hot_y, debug) / data_x.shape[0]
-        return accuracy
+        accuracy, predictions = self.accuracy(data_x, one_hot_y, debug)
+        accuracy /= data_x.shape[0]
+        return accuracy, predictions
 
     @staticmethod
     def print_stats(losses, accuracy, size, padding):
@@ -553,27 +557,29 @@ class MultiLayerPerceptron:
                             f"({lr}/{batch_size}) * db({db[l_ind].shape}")
 
     def save_model(self, epoch, accuracies, losses, times):
-        with open(f'data/bpnn/model_train_{epoch}.pickle', 'wb') as handle:
-            pickle.dump(self, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(f'data/bpnn/accuracies_train_{epoch}.pickle', 'wb') as handle:
-            pickle.dump(accuracies, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(f'data/bpnn/losses_train_{epoch}.pickle', 'wb') as handle:
-            pickle.dump(losses, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(f'data/bpnn/times_train_{epoch}.pickle', 'wb') as handle:
-            pickle.dump(times, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        self.save_pickle(var=self, path=f'data/bpnn/model_train_{epoch}.pickle')
+        self.save_pickle(var=accuracies, path=f'data/bpnn/accuracies_train_{epoch}.pickle')
+        self.save_pickle(var=losses, path=f'data/bpnn/losses_train_{epoch}.pickle')
+        self.save_pickle(var=times, path=f'data/bpnn/times_train_{epoch}.pickle')
 
     @staticmethod
-    def load_model_instance(epoch: int):
-        with open(f'data/bpnn/model_train_{epoch}.pickle', 'rb') as handle:
-            model = pickle.load(handle)
-        with open(f'data/bpnn/accuracies_train_{epoch}.pickle', 'rb') as handle:
-            accuracies = pickle.load(handle)
-        with open(f'data/bpnn/losses_train_{epoch}.pickle', 'rb') as handle:
-            losses = pickle.load(handle)
-        with open(f'data/bpnn/times_train_{epoch}.pickle', 'rb') as handle:
-            times = pickle.load(handle)
+    def save_pickle(var: Any, path: str):
+        with open(path, 'wb') as handle:
+            pickle.dump(var, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+    @classmethod
+    def load_model_instance(cls, epoch: int):
+        model = cls.load_pickle(f'data/bpnn/model_train_{epoch}.pickle')
+        accuracies = cls.load_pickle(f'data/bpnn/accuracies_train_{epoch}.pickle')
+        losses = cls.load_pickle(f'data/bpnn/losses_train_{epoch}.pickle')
+        times = cls.load_pickle(f'data/bpnn/times_train_{epoch}.pickle')
         return model, accuracies, losses, times
+
+    @staticmethod
+    def load_pickle(path: str) -> Any:
+        with open(path, 'rb') as handle:
+            var = pickle.load(handle)
+        return var
 
     @staticmethod
     def linear(z):
@@ -647,7 +653,7 @@ class MultiLayerPerceptron:
         return y_predicted, y_raw_predictions
 
     def accuracy(self, data_x: np.ndarray, data_y: np.ndarray,
-                 debug: Dict) -> int:
+                 debug: Dict) -> Tuple[int, np.ndarray]:
         if debug['metrics']:
             logger.nl()
             logger.info('Accuracy', color='cyan')
@@ -656,7 +662,7 @@ class MultiLayerPerceptron:
                               for (pred, true) in zip(predictions, data_y))
         if debug['metrics']:
             logger.info(f'result_accuracy: {result_accuracy}')
-        return result_accuracy
+        return result_accuracy, np.stack(predictions, axis=0)
 
     def total_loss(self, data_x: np.ndarray, data_y: np.ndarray, regularization_param: float,
                    debug: Dict) -> List[Tuple[str, float]]:
@@ -733,7 +739,8 @@ def train_bpnn(name, dataset, targets, hidden_layers, activations, loss_function
 
 def test_and_plot_bpnn(title, test_set=None, one_hot_targets=None, model=None, accuracies=None,
                        losses=None,
-                       times=None, subsample=1):
+                       times=None,
+                       subsample=1, min_acc: float = 0.0, save_predictions: bool = False):
     import types
     # Test the full dataset
     if isinstance(test_set, float):
@@ -742,13 +749,19 @@ def test_and_plot_bpnn(title, test_set=None, one_hot_targets=None, model=None, a
         test_accuracy = None
     else:
         model.predict = types.MethodType(MultiLayerPerceptron.predict, model)
-        test_accuracy = model.test(test_set.copy(), one_hot_targets.copy())
+        test_accuracy, predictions_onehot = model.test(test_set.copy(), one_hot_targets.copy())
+        if save_predictions:
+            path = f'data/bpnn/predicted_onehot_y.pickle'
+            predictions = one_hot_unencode(predictions_onehot)
+            MultiLayerPerceptron.save_pickle(var=predictions, path=path)
+            return MultiLayerPerceptron.load_pickle(path=path)
     # Plot
     plot_bpnn_results(title=title,
                       test_accuracy=test_accuracy,
                       accuracies=accuracies,
                       losses=losses,
-                      times=times, subsample=subsample)
+                      times=times,
+                      subsample=subsample, min_acc=min_acc)
 
 
 # Implementation of kmeans clustering algorithm

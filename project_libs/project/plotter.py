@@ -17,13 +17,12 @@ def viz_columns_corr(df: pd.DataFrame, cols_to_visualize: List[str]) -> None:
 
 
 def plot_bpnn_results(title: str, losses: List, test_accuracy: float, accuracies: List,
-                      times: List, subsample: int = 1):
+                      times: List, subsample: int = 1, min_acc: float = 0.0):
     warnings.filterwarnings("ignore")
     losses_ = losses[::subsample]
     losses_ = list(zip(*losses_))
     loss_names = []
     loss_values = []
-
     for loss in losses_:
         loss_name, values = list(zip(*loss))
         loss_names.append(loss_name[0])
@@ -46,6 +45,7 @@ def plot_bpnn_results(title: str, losses: List, test_accuracy: float, accuracies
     ax[0][0].set_ylabel("Accuracies (%)")
     ax[0][0].set_yticks([0, 0.25, 0.5, 0.75, 1])
     ax[0][0].set_yticklabels([0, 25., 50., 75., 100.])
+    ax[0][0].set_ylim([min_acc, 1.0])
     x_ticks = ax[0][0].get_xticks().tolist()
     ax[0][0].set_xticklabels([int(x_tick * subsample) for x_tick in x_ticks])
     ax[0][0].grid(True)
@@ -67,7 +67,7 @@ def plot_bpnn_results(title: str, losses: List, test_accuracy: float, accuracies
         ax[1][ind].set_xticklabels([int(x_tick * subsample) for x_tick in x_ticks])
         ax[1][ind].grid(True)
     fig.tight_layout()
-    make_space_above(ax, top_margin=1)
+    make_space_above(ax, top_margin=2)
     fig.show()
 
 
