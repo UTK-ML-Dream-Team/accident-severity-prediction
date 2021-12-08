@@ -444,7 +444,8 @@ class MultiLayerPerceptron:
         if not debug:
             debug = {'epochs': 10 ** 10, 'batches': 10 ** 10,
                      'ff': False, 'bp': False, 'w': False, 'metrics': False}
-        data_x, _ = self.x_y_split(data)
+        # data_x, _ = self.x_y_split(data)
+        data_x = data
         accuracy = self.accuracy(data_x, one_hot_y, debug) / data_x.shape[0]
         return accuracy
 
@@ -560,6 +561,19 @@ class MultiLayerPerceptron:
             pickle.dump(losses, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open(f'data/bpnn/times_train_{epoch}.pickle', 'wb') as handle:
             pickle.dump(times, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load_model_instance(epoch: int):
+        with open(f'data/bpnn/model_train_{epoch}.pickle', 'rb') as handle:
+            model = pickle.load(handle)
+        with open(f'data/bpnn/accuracies_train_{epoch}.pickle', 'rb') as handle:
+            accuracies = pickle.load(handle)
+        with open(f'data/bpnn/losses_train_{epoch}.pickle', 'rb') as handle:
+            losses = pickle.load(handle)
+        with open(f'data/bpnn/times_train_{epoch}.pickle', 'rb') as handle:
+            times = pickle.load(handle)
+
+        return model, accuracies, losses, times
 
     @staticmethod
     def linear(z):
@@ -720,12 +734,14 @@ def train_bpnn(name, dataset, targets, hidden_layers, activations, loss_function
 def test_and_plot_bpnn(title, test_set=None, one_hot_targets=None, model=None, accuracies=None,
                        losses=None,
                        times=None, subsample=1):
+    import types
     # Test the full dataset
     if isinstance(test_set, float):
         test_accuracy = test_set
     elif test_set is None:
         test_accuracy = None
     else:
+        model.predict = types.MethodType(MultiLayerPerceptron.predict, model)
         test_accuracy = model.test(test_set.copy(), one_hot_targets.copy())
     # Plot
     plot_bpnn_results(title=title,

@@ -68,6 +68,7 @@ def plot_bpnn_results(title: str, losses: List, test_accuracy: float, accuracies
         ax[1][ind].grid(True)
     fig.tight_layout()
     make_space_above(ax, top_margin=1)
+    fig.show()
 
 
 def make_space_above(axes, top_margin=1):
