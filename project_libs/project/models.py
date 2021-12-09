@@ -164,7 +164,9 @@ class BayesianCase:
         return g
 
     def predict(self, mtype: str, priors: List[float] = None,
-                first_and_second_case_cov_type: str = 'avg', save_data: bool = False) -> np.ndarray:
+                first_and_second_case_cov_type: str = 'avg',
+                save_data: bool = False,
+                extra_name: str = '') -> np.ndarray:
         """ Tests the model on the test dataset and returns the accuracy. """
 
         # Which covariance to use in the first and second case
@@ -200,7 +202,8 @@ class BayesianCase:
         self.predicted_y[mtype] = np.array(_predicted_y)
         self.prediction_time[mtype] = time() - start
         if save_data:
-            self.save_pickle(self.predicted_y[mtype][:, np.newaxis], case=mtype)
+            self.save_pickle(self.predicted_y[mtype][:, np.newaxis],
+                             case=mtype, extra_name=extra_name)
         return self.predicted_y[mtype]
 
     def get_statistics(self, mtype: str) -> Tuple[float, List[float], float]:
@@ -252,8 +255,8 @@ class BayesianCase:
         logger.info(f"|{'Negative':^15}|{self.fp[mtype]:^15}|{self.tn[mtype]:^15}|", color='red')
 
     @staticmethod
-    def save_pickle(var: Any, case: str):
-        path = f'data/bpnn/bayesian_{case}_case_predicted.pickle'
+    def save_pickle(var: Any, case: str, extra_name: str = ''):
+        path = f'data/bayesian/bayesian_{case}_case_{extra_name}_predicted.pickle'
         with open(path, 'wb') as handle:
             pickle.dump(var, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
