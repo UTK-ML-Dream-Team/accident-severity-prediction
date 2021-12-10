@@ -1128,7 +1128,7 @@ def euclid(x1, x2):
     return edist
 
 
-# WTA Function
+# WTA Function - Euclidian Distance
 def win(Xtest, ytest, k, kcenters, epsilon, max_iter):
     cent_prev = []  # previous center
     group = []
@@ -1192,6 +1192,236 @@ def cent(Xtest, k):  # choses random centers to start function
     ind = np.random.choice(nte, size=k, replace=False)  # index of random rows
     kcenters = Xtest.iloc[ind, :]
     return kcenters, k
+
+#WTA Function - City Block
+from scipy.spatial.distance import cityblock
+
+#Creating WTA for different distances -> city block distance
+def win_city(Xtest, ytest, k, kcenters, epsilon, max_iter):
+   
+    cent_prev = [] #previous center
+    group = []
+    group_prev = []
+    group_change = []
+    change = []
+    epoch = []
+   
+    e = 0
+   
+    for it in range(max_iter):  
+       
+        change = []
+        group = []
+       
+        for i in Xtest: # go through all obs in data
+            cent_dist = [] # store distances from each obs in test data
+            kcenters = np.array(kcenters)
+
+            for j in range(len(kcenters)): # go through each of kcenters
+                distances = cityblock((kcenters[j, :]), i) # distance to each center (min euclidian)
+                cent_dist.append(distances) 
+
+            label = cent_dist.index(min(cent_dist)) # decision of closest distance
+            group.append(label)
+           
+            # see lecture 6 slides - moves point closer to closest center
+
+            closest = kcenters[label, :] # finds closest center & label is the index value
+
+           
+            # w(new) = w(old) + epsilon*(x-w(old)) - equation from lecture slides
+            #updating closest cluster
+            new_center = closest + epsilon*(i - closest) 
+            kcenters[label, :] = new_center 
+         
+
+        group_prev.append(np.array(group)) 
+ 
+        e +=1
+        epoch.append(e)
+        if it == 0:
+            change = 1
+            group_change.append(change)
+        if it > 0:
+            change = (np.sum(np.array(group_prev)[it,:] != np.array(group_prev)[it-1,:]))
+            group_change.append(change / len(Xtest))    
+        if it > 0 and change == 0.0:
+            break
+    class_win_acc, overall_win_acc, y, y_model = accuracy_score(ytest, group)
+    return epoch, group_change, class_win_acc, overall_win_acc, y, y_model
+
+
+#WTA Function - Cosine Similarity
+from scipy.spatial.distance import cosine
+def win_cosine(Xtest, ytest, k, kcenters, epsilon, max_iter):
+   
+    cent_prev = [] #previous center
+    group = []
+    group_prev = []
+    group_change = []
+    change = []
+    epoch = []
+   
+    e = 0
+   
+    for it in range(max_iter):  
+       
+        change = []
+        group = []
+       
+        for i in Xtest: # go through all obs in data
+            cent_dist = [] # store distances from each obs in test data
+            kcenters = np.array(kcenters)
+
+            for j in range(len(kcenters)): # go through each of kcenters
+                distances = cosine((kcenters[j, :]), i) # distance to each center (min euclidian)
+                cent_dist.append(distances) 
+
+            label = cent_dist.index(min(cent_dist)) # decision of closest distance
+            group.append(label)
+           
+            # see lecture 6 slides - moves point closer to closest center
+
+            closest = kcenters[label, :] # finds closest center & label is the index value
+
+           
+            # w(new) = w(old) + epsilon*(x-w(old)) - equation from lecture slides
+            #updating closest cluster
+            new_center = closest + epsilon*(i - closest) 
+            kcenters[label, :] = new_center 
+         
+
+        group_prev.append(np.array(group)) 
+ 
+        e +=1
+        epoch.append(e)
+        if it == 0:
+            change = 1
+            group_change.append(change)
+        if it > 0:
+            change = (np.sum(np.array(group_prev)[it,:] != np.array(group_prev)[it-1,:]))
+            group_change.append(change / len(Xtest))    
+        if it > 0 and change == 0.0:
+            break
+    class_win_acc, overall_win_acc, y, y_model = accuracy_score(ytest, group)
+    return epoch, group_change, class_win_acc, overall_win_acc, y, y_model
+
+
+# WTA Function - Correlation
+from scipy.spatial.distance import correlation
+def win_corr(Xtest, ytest, k, kcenters, epsilon, max_iter):
+   
+    cent_prev = [] #previous center
+    group = []
+    group_prev = []
+    group_change = []
+    change = []
+    epoch = []
+   
+    e = 0
+   
+    for it in range(max_iter):  
+       
+        change = []
+        group = []
+       
+        for i in Xtest: # go through all obs in data
+            cent_dist = [] # store distances from each obs in test data
+            kcenters = np.array(kcenters)
+
+            for j in range(len(kcenters)): # go through each of kcenters
+                distances = correlation((kcenters[j, :]), i) # distance to each center (min euclidian)
+                cent_dist.append(distances) 
+
+            label = cent_dist.index(min(cent_dist)) # decision of closest distance
+            group.append(label)
+           
+            # see lecture 6 slides - moves point closer to closest center
+
+            closest = kcenters[label, :] # finds closest center & label is the index value
+
+           
+            # w(new) = w(old) + epsilon*(x-w(old)) - equation from lecture slides
+            #updating closest cluster
+            new_center = closest + epsilon*(i - closest) 
+            kcenters[label, :] = new_center 
+         
+
+        group_prev.append(np.array(group)) 
+ 
+        e +=1
+        epoch.append(e)
+        if it == 0:
+            change = 1
+            group_change.append(change)
+        if it > 0:
+            change = (np.sum(np.array(group_prev)[it,:] != np.array(group_prev)[it-1,:]))
+            group_change.append(change / len(Xtest))    
+        if it > 0 and change == 0.0:
+            break
+    class_win_acc, overall_win_acc, y, y_model = accuracy_score(ytest, group)
+    return epoch, group_change, class_win_acc, overall_win_acc, y, y_model
+
+# WTA Function - Canberra Distance
+from scipy.spatial.distance import canberra
+def win_can(Xtest, ytest, k, kcenters, epsilon, max_iter):
+   
+    cent_prev = [] #previous center
+    group = []
+    group_prev = []
+    group_change = []
+    change = []
+    epoch = []
+   
+    e = 0
+   
+    for it in range(max_iter):  
+       
+        change = []
+        group = []
+       
+        for i in Xtest: # go through all obs in data
+            cent_dist = [] # store distances from each obs in test data
+            kcenters = np.array(kcenters)
+
+            for j in range(len(kcenters)): # go through each of kcenters
+                #Covariance = np.cov(np.transpose(Xtest))
+                #inv_covmat = np.linalg.inv(Covariance)
+                #V = np.cov(np.array(Xtest.T))
+                #IV = np.linalg.inv(V)
+                distances = canberra((kcenters[j, :]), i)
+                #distances = mahalanobis((kcenters[j, :]), i, inv_covmat) # distance to each center (min euclidian)
+                cent_dist.append(distances) 
+
+            label = cent_dist.index(min(cent_dist)) # decision of closest distance
+            group.append(label)
+           
+            # see lecture 6 slides - moves point closer to closest center
+
+            closest = kcenters[label, :] # finds closest center & label is the index value
+
+           
+            # w(new) = w(old) + epsilon*(x-w(old)) - equation from lecture slides
+            #updating closest cluster
+            new_center = closest + epsilon*(i - closest) 
+            kcenters[label, :] = new_center 
+         
+
+        group_prev.append(np.array(group)) 
+ 
+        e +=1
+        epoch.append(e)
+        if it == 0:
+            change = 1
+            group_change.append(change)
+        if it > 0:
+            change = (np.sum(np.array(group_prev)[it,:] != np.array(group_prev)[it-1,:]))
+            group_change.append(change / len(Xtest))    
+        if it > 0 and change == 0.0:
+            break
+    class_win_acc, overall_win_acc, y, y_model = accuracy_score(ytest, group)
+    return epoch, group_change, class_win_acc, overall_win_acc, y, y_model
+
 
 
 def tune_SKLearn_LR(X_train, X_val, X_test, y_train, y_val, y_test, param):
