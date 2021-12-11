@@ -742,6 +742,7 @@ class kmeans:
         # print("Kmeans Classification Report:")
         print(f"Overall Accuracy: {round(100.0 * accuracy_score(y_true, y_pred), 2)} %")
         print(f"F1-Score: {round(f1_score(y_true, y_pred), 3)}")
+        print(f"F1-Score Macro: {round(f1_score(y_true, y_pred, average='macro'), 3)}")
         print(f"Class 0 accuracy: {round(class_0_accuracy, 2)} %")
         print(f"Class 1 accuracy: {round(class_1_accuracy, 2)} %")
 
