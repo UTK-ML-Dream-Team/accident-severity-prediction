@@ -20,6 +20,7 @@ from sklearn.linear_model import LogisticRegression
 import warnings
 import pickle
 from project_libs.project import one_hot_unencode
+import xgboost as xgb
 
 logger = ColorizedLogger('Models', 'green')
 
@@ -1399,3 +1400,85 @@ def tune_scratch_log_reg(xtrain, ytrain, xval, yval, passes):
     opt_params = params[opt_n]
 
     return opt_params
+
+def perform_xgboost_tuning(X, param):
+    # Load the dataset
+    X_train, X_val, _, X_train_pca, X_val_pca, \
+                            _, y_train, y_val, _ = X
+    
+    # Find the optimal ratio for scale_pos_weight
+    opt_spw = round(y_train.value_counts()[0] / y_train.value_counts()[1], 2)
+    parameters = {
+                    "n_estimator": [100, 250],
+                    "scale_pos_weight": [1, opt_spw, 5],
+                    "max_depth": [3, 4, 6, 8],
+                    "learning_rate": [1, 0.3, 0.01, 0.05]
+                }
+                
+    if param == 'full':
+        print("============================================")
+        print(f"\033[1m XGBoost Tuning Results on Full Data\033[0m")
+        print("============================================")
+
+        for n in parameters['n_estimator']:
+            for spw in parameters['scale_pos_weight']:
+                for md in parameters['max_depth']:
+                    for lr in parameters['learning_rate']:
+                        clf_xg = xgb.XGBClassifier(use_label_encoder=False, verbosity = 0, \
+                                        random_state=42, n_estimator=n, scale_pos_weight=spw, \
+                                        subsample=0.8, colsample_bytree=0.8, max_depth=md, learning_rate=lr)
+                        clf_xg.fit(X_train, y_train)
+                        y_pred = clf_xg.predict(X_val)
+                        score = accuracy_score(y_val, y_pred)
+                        f1_s = f1_score(y_val, y_pred, average='macro')
+                        print(f"n_estimator: {n} \t scale_pos_weight: {spw} \t max_depth: {md} \t learning_rate: {lr} \t Accuracy: {round(100*score, 2)}% \t F1 Score(Macro): {round(f1_s, 2)}") 
+    
+    elif param == 'pca':
+        print("============================================")
+        print(f"\033[1m XGBoost Tuning Results on PCA Data\033[0m")
+        print("============================================")
+
+        for n in parameters['n_estimator']:
+            for spw in parameters['scale_pos_weight']:
+                for md in parameters['max_depth']:
+                    for lr in parameters['learning_rate']:
+                        clf_xg = xgb.XGBClassifier(use_label_encoder=False, verbosity = 0, \
+                                        random_state=42, n_estimator=n, scale_pos_weight=spw, \
+                                        subsample=0.8, colsample_bytree=0.8, max_depth=md, learning_rate=lr)
+                        clf_xg.fit(X_train_pca, y_train)
+                        y_pred = clf_xg.predict(X_val_pca)
+                        score = accuracy_score(y_val, y_pred)
+                        f1_s = f1_score(y_val, y_pred, average='macro')
+                        print(f"n_estimator: {n} \t scale_pos_weight: {spw} \t max_depth: {md} \t learning_rate: {lr} \t Accuracy: {round(100*score, 2)}% \t F1 Score(Macro): {round(f1_s, 2)}") 
+    else:
+        print("Incorrect argument was passed.")
+
+# Further tune XGBoost on Regularization and Tree Depth
+def perform_xgboost_tuning_2(X):
+    # Load the dataset
+    X_train, X_val, _, X_train_pca, X_val_pca, \
+                            _, y_train, y_val, _ = X
+
+    parameters = {
+                "max_depth": [12, 20, 16],
+                "reg_alpha":[1e-2, 0.1, 0, 10, 100],
+                "reg_lambda": [0.1, 1.0, 5.0, 10.0],                    
+            }
+
+    print("==========================================================")
+    print(f"\033[1m Tune XGBoost on Regularization Parameters (Full Data)\033[0m")
+    print("==========================================================")
+
+    for d in parameters['max_depth']:
+        for a in parameters['reg_alpha']:
+            for l in parameters['reg_lambda']:
+                clf_xg = xgb.XGBClassifier(use_label_encoder=False, verbosity = 0, \
+                                random_state=42, n_estimator=100, scale_pos_weight=1, \
+                                subsample=0.8, colsample_bytree=0.8, max_depth=d, \
+                                learning_rate=0.3, reg_alpha=a, reg_lambda=l)
+                clf_xg.fit(X_train, y_train)
+                y_pred = clf_xg.predict(X_val)
+                score = accuracy_score(y_val, y_pred)
+                f1_s = f1_score(y_val, y_pred, average='macro')
+                print(f"max_depth: {d} \t reg_alpha: {a} \t reg_lambda: {l} \t Accuracy: {round(100*score, 2)}% \t F1 Score(Macro): {round(f1_s, 2)}") 
+
